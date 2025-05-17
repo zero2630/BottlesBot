@@ -16,12 +16,22 @@ async def update_find_lim():
             stmt = update(User).where(User.find_lim < 5).values(find_lim = User.find_lim + 1)
             await session.execute(stmt)
             await session.commit()
+        await asyncio.sleep(60)
+
+
+async def update_send_lim():
+    while True:
+        async with async_session_maker() as session:
+            stmt = update(User).where(User.send_lim < 3).values(send_lim = User.send_lim + 1)
+            await session.execute(stmt)
+            await session.commit()
         await asyncio.sleep(30)
 
 
 async def main():
     loop = asyncio.get_event_loop()
     loop.create_task(update_find_lim())
+    loop.create_task(update_send_lim())
     storage = RedisStorage.from_url("redis://localhost:6379/0")
     dp.include_routers(
         commands.router, user.router

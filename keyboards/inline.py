@@ -64,10 +64,10 @@ def buy_bottles(tg_id):
     return builder.as_markup(resize_keyboard=True)
 
 
-def use_bottles(tg_id):
+def use_bottles(tg_id, action):
     builder = InlineKeyboardBuilder()
     builder.button(
         text=f"Да",
-        callback_data=UseBottles(action="use_1", tg_id=tg_id),
+        callback_data=UseBottles(action=action, tg_id=tg_id),
     )
     return builder.as_markup(resize_keyboard=True)

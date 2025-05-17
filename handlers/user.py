@@ -32,8 +32,40 @@ async def cancel(message: Message, state: FSMContext):
 
 @router.message(F.text.casefold() == main_but1)
 async def send_bottle(message: Message, state: FSMContext):
-    await state.set_state(states.SendBottle.bottle_text)
-    await message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
+    async with async_session_maker() as session:
+        stmt = select(User.send_lim).where(User.tg_id == message.from_user.id)
+        send_lim = (await session.execute(stmt)).first()[0]
+        stmt = select(User.bottles).where(User.tg_id == message.from_user.id)
+        bottles = (await session.execute(stmt)).first()[0]
+        if send_lim > 0:
+            await state.set_state(states.SendBottle.bottle_text)
+            await message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
+
+        elif bottles>0:
+            await message.answer(
+                f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 5 минут.\n<b>Имеется {bottles} доп. бутылок\nИспользовать?</b>",
+                reply_markup=inline.use_bottles(message.from_user.id, "use_send"))
+
+        else:
+            await message.answer(f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 5 минут.", reply_markup=reply.main)
+
+
+@router.callback_query(inline.UseBottles.filter(F.action == "use_send"))
+async def use_bottle_send(call: CallbackQuery, callback_data: inline.UseBottles, state:FSMContext):
+    await state.set_state(states.SendBottle.bottle_text_lim)
+    await call.message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
+
+
+@router.message(states.SendBottle.bottle_text_lim)
+async def send_bottle_success(message: Message, state: FSMContext):
+    await state.clear()
+    async with async_session_maker() as session:
+        stmt = insert(Bottle).values(text=message.text, author=message.from_user.id)
+        await session.execute(stmt)
+        await session.commit()
+
+    await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, bottles=User.bottles-1)
+    await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
 
 
 @router.message(states.SendBottle.bottle_text)
@@ -44,7 +76,7 @@ async def send_bottle_success(message: Message, state: FSMContext):
         await session.execute(stmt)
         await session.commit()
 
-    await increment_user_value(message.from_user.id, send_amount=User.send_amount + 1)
+    await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
 
 
@@ -78,15 +110,15 @@ async def get_bottle(message: Message):
                 await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
         else:
             if bottles>0:
-                await message.answer(f"Лимит поиска посланий исчерпан.\nОн обновляется каждый час.\nИмеется {bottles} доп. бутылок\nИспользовать?",
-                                     reply_markup=inline.use_bottles(message.from_user.id))
+                await message.answer(f"Лимит поиска посланий исчерпан.\nОн обновляется каждые 60 секунд.\n<b>Имеется {bottles} доп. бутылок\nИспользовать?</b>",
+                                     reply_markup=inline.use_bottles(message.from_user.id, "use_find"))
             else:
                 await message.answer(
-                    f"Лимит поиска посланий исчерпан.\nОн обновляется каждый час.\nИмеется {bottles} доп. бутылок",
+                    f"Лимит поиска посланий исчерпан.\nОн обновляется каждый час.",
                     reply_markup=reply.main)
 
 
-@router.callback_query(inline.UseBottles.filter(F.action == "use_1"))
+@router.callback_query(inline.UseBottles.filter(F.action == "use_find"))
 async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
     async with async_session_maker() as session:
         stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()

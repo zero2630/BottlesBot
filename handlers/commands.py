@@ -2,6 +2,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import insert, select, delete
 
 from keyboards import reply
@@ -46,10 +47,11 @@ async def command_admin(message: Message):
 async def command_admin(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
         usr_id = int(message.text.split()[1])
-        button_url = f'tg://openmessage?user_id={usr_id}'
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text=button_text, url=button_url))
-        await message.answer(text=f'{usr_id}', reply_markup=markup)
+        button_url = f'tg://user?id={usr_id}'
+        inline_kb_list = [
+            [InlineKeyboardButton(text="get_user", url=button_url)],
+        ]
+        await message.answer(text=f'get_user', reply_markup=InlineKeyboardMarkup(inline_keyboard=inline_kb_list))
 
 
 @router.message(Command("isadmin"))

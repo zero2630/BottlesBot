@@ -4,3 +4,4 @@ asyncpg==0.30.0
 python-dotenv==1.1.0
 redis==6.0.0
 aioschedule==0.5.2
+alembic==1.15.2

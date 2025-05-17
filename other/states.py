@@ -7,6 +7,7 @@ class SendAnswer(StatesGroup):
 
 class SendBottle(StatesGroup):
     bottle_text = State()
+    bottle_text_lim = State()
 
 
 class BuyBottle(StatesGroup):
