@@ -42,6 +42,16 @@ async def command_admin(message: Message):
         await message.answer(f"user {message.text.split()[1]} deleted")
 
 
+@router.message(Command("getuser"))
+async def command_admin(message: Message):
+    if str(message.from_user.id) in settings.ADMINS:
+        usr_id = int(message.text.split()[1])
+        button_url = f'tg://openmessage?user_id={usr_id}'
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(text=button_text, url=button_url))
+        await message.answer(text=f'{usr_id}', reply_markup=markup)
+
+
 @router.message(Command("isadmin"))
 async def command_admin(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
