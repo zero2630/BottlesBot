@@ -59,9 +59,9 @@ async def get_bottle(message: Message):
         stmt = select(User.bottles).where(User.tg_id == message.from_user.id)
         bottles = (await session.execute(stmt)).first()[0]
         if find_lim > 0:
-            stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc())
-            # ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == message.from_user.id)))
-            # ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == message.from_user.id))))
+            stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
+            ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == message.from_user.id)))
+            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == message.from_user.id))))
             res = (await session.execute(stmt)).first()
             if res:
                 bottle = res[0]
