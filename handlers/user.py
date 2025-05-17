@@ -89,7 +89,7 @@ async def get_bottle(message: Message):
 @router.callback_query(inline.UseBottles.filter(F.action == "use_1"))
 async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
     async with async_session_maker() as session:
-        stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc())
+        stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
         ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == callback_data.tg_id)))
         ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == callback_data.tg_id))))
         res = (await session.execute(stmt)).first()
