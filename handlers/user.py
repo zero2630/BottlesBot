@@ -287,7 +287,7 @@ async def buy_menu(message: Message, state: FSMContext):
         likes = (await session.execute(stmt)).first()[0]
 
     await message.answer(f"<b>За полученные ❤️ можно приобрести дополнительные открытия бутылок\n"
-                         f"1 🍾 = 5 ❤️\n"
+                         f"1 🍾 = 1 ❤️\n"
                          f"На балансе: {likes} ❤️</b>",
                          reply_markup=inline.buy_bottles(message.from_user.id))
 
@@ -297,9 +297,9 @@ async def buy_bottles(call: CallbackQuery, callback_data: inline.Reaction):
     async with async_session_maker() as session:
         stmt = select(User.likes).where(User.tg_id == callback_data.tg_id)
         likes = (await session.execute(stmt)).first()[0]
-        if likes>=5*callback_data.amount:
+        if likes>=callback_data.amount:
             await increment_user_value(callback_data.tg_id, bottles=User.bottles+callback_data.amount)
-            await increment_user_value(callback_data.tg_id, likes=User.likes - 5*callback_data.amount)
+            await increment_user_value(callback_data.tg_id, likes=User.likes - callback_data.amount)
             await session.commit()
 
             await call.message.answer("💸", reply_markup=reply.main)
