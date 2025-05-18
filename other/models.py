@@ -37,7 +37,8 @@ class Bottle(Base):
     __tablename__ = "bottle"
     id: Mapped[int] = mapped_column(primary_key=True)
     text: Mapped[str] = mapped_column(Text)
-    
+    type: Mapped[str] = mapped_column(String(10), server_default="text")
+    file_id: Mapped[str] = mapped_column(Text, server_default="")
     author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id", ondelete="CASCADE"))
     views: Mapped[int] = mapped_column(default=0)
     rating: Mapped[int] = mapped_column(default=0)

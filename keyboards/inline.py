@@ -1,6 +1,8 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
 from aiogram.filters.callback_data import CallbackData
 
+from other.models import Bottle
+
 
 class Reaction(CallbackData, prefix="reaction"):
     action: str

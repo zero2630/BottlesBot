@@ -40,6 +40,15 @@ def get_find_stmt(tg_id):
     return stmt
 
 
+async def send_bottle_multitype(bottle, tg_id, markup, add_text):
+    if bottle.type == "text":
+        return await bot.send_message(chat_id=tg_id, text=add_text+bottle.text, reply_markup=markup)
+    elif bottle.type == "img":
+        return await bot.send_photo(chat_id=tg_id, photo=bottle.file_id, caption=add_text+bottle.text, reply_markup=markup)
+    elif bottle.type == "voice":
+        return await bot.send_voice(chat_id=tg_id, voice=bottle.file_id, reply_markup=markup)
+
+
 @router.message(F.text == cancel_but)
 async def cancel(message: Message, state: FSMContext):
     await state.clear()
@@ -55,6 +64,7 @@ async def send_bottle(message: Message, state: FSMContext):
         bottles = (await session.execute(stmt)).first()[0]
         if send_lim > 0:
             await state.set_state(states.SendBottle.bottle_text)
+            await state.update_data(bottle_text='send_lim')
             await message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
 
         elif bottles>0:
@@ -68,33 +78,42 @@ async def send_bottle(message: Message, state: FSMContext):
 
 @router.callback_query(inline.UseBottles.filter(F.action == "use_send"))
 async def use_bottle_send(call: CallbackQuery, callback_data: inline.UseBottles, state:FSMContext):
-    await state.set_state(states.SendBottle.bottle_text_lim)
+    await state.set_state(states.SendBottle.bottle_text)
+    await state.update_data(bottle_text='bottles')
     await call.message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
 
 
-@router.message(states.SendBottle.bottle_text_lim)
+@router.message(states.SendBottle.bottle_text, F.text)
 async def send_bottle_success(message: Message, state: FSMContext):
-    await state.clear()
     async with async_session_maker() as session:
-        stmt = insert(Bottle).values(text=message.text, author=message.from_user.id)
+        stmt = insert(Bottle).values(text=message.text, author=message.from_user.id, type="text")
         await session.execute(stmt)
         await session.commit()
+    if (await state.get_data())["bottle_text"] == "send_lim":
+        await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
+    else:
+        await increment_user_value(message.from_user.id, send_amount=User.send_amount + 1, bottles=User.bottles - 1)
 
-    await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, bottles=User.bottles-1)
     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
-
-
-@router.message(states.SendBottle.bottle_text)
-async def send_bottle_success(message: Message, state: FSMContext):
     await state.clear()
+
+
+@router.message(states.SendBottle.bottle_text, F.photo)
+async def send_bottle_success(message: Message, state: FSMContext):
     async with async_session_maker() as session:
-        stmt = insert(Bottle).values(text=message.text, author=message.from_user.id)
+        photo_caption = ""
+        if message.caption:
+            photo_caption = message.caption
+        stmt = insert(Bottle).values(text=photo_caption, author=message.from_user.id, type="img", file_id=message.photo[-1].file_id)
         await session.execute(stmt)
         await session.commit()
+    if (await state.get_data())["bottle_text"] == "send_lim":
+        await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
+    else:
+        await increment_user_value(message.from_user.id, send_amount=User.send_amount + 1, bottles=User.bottles - 1)
 
-    await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
-
+    await state.clear()
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -118,7 +137,7 @@ async def get_bottle(message: Message):
                 await session.commit()
 
                 await increment_user_value(message.from_user.id, find_amount=User.find_amount + 1, find_lim = User.find_lim - 1)
-                await bot.send_message(message.from_user.id, f"<b>Твое послание</b>:\n{bottle.text}", reply_markup=inline.action_bottle(bottle.id, True, True))
+                await send_bottle_multitype(bottle, message.from_user.id, inline.action_bottle(bottle.id, True, True), "<b>Твое послание</b>:\n")
             else:
                 await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
         else:
@@ -127,7 +146,7 @@ async def get_bottle(message: Message):
                                      reply_markup=inline.use_bottles(message.from_user.id, "use_find"))
             else:
                 await message.answer(
-                    f"Лимит поиска посланий исчерпан.\nОн обновляется каждый час.",
+                    f"Лимит поиска посланий исчерпан.\nОн обновляется каждые 60 секунд.",
                     reply_markup=reply.main)
 
 
@@ -146,8 +165,7 @@ async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
             await session.commit()
 
             await increment_user_value(callback_data.tg_id, bottles=User.bottles-1, find_amount=User.find_amount + 1)
-            await bot.send_message(callback_data.tg_id, f"<b>Твое послание</b>:\n{bottle.text}",
-                                   reply_markup=inline.action_bottle(bottle.id, True, True))
+            await send_bottle_multitype(bottle, message.from_user.id, inline.action_bottle(bottle.id, True, True), "<b>Твое послание</b>:\n")
         else:
             await call.message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
 
@@ -203,9 +221,9 @@ async def send_answer_success(message: Message, state: FSMContext):
     await state.clear()
     await message.answer("Ваш ответ был отправлен автору ✅", reply_markup=reply.main)
     await bot.send_message(text=f"<b>Тебе пришел ответ!</b>\n"
-                           f"на бутылочку\n"
-                           f"<blockquote>{bottle.text}</blockquote>\n",
+                           f"на бутылочку\n",
                            chat_id=bottle.author)
+    await send_bottle_multitype(bottle, bottle.author, None, "")
 
     await bot.send_message(text=f"<b>Тебе ответили:</b>\n"
                            f"{message.text}", chat_id=bottle.author)
@@ -214,13 +232,16 @@ async def send_answer_success(message: Message, state: FSMContext):
 @router.callback_query(inline.Reaction.filter(F.action == "report"))
 async def report_bottle(call: CallbackQuery, callback_data: inline.Reaction, state: FSMContext):
     async with async_session_maker() as session:
+        stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
+        bottle = (await session.execute(stmt)).first()[0]
         messages = {}
         for i in range(len(settings.MODERATORS)):
-            msg = (await bot.send_message(chat_id=settings.MODERATORS[i],
-                                   text=f"<b>⚠️Поступила новая жалоба⚠️\n"
-                                    f"содержание бутылочки</b>:\n"
-                                    f"<blockquote>{call.message.text}</blockquote>",
-                                   reply_markup=inline.ban_usr(callback_data.bottle_id)))
+            msg = (await send_bottle_multitype(bottle, settings.MODERATORS[i], inline.ban_usr(bottle.id), "<b>⚠️Поступила новая жалоба⚠️\nсодержание бутылочки</b>:\n"))
+            # msg = (await bot.send_message(chat_id=settings.MODERATORS[i],
+            #                        text=f"<b>⚠️Поступила новая жалоба⚠️\n"
+            #                         f"содержание бутылочки</b>:\n"
+            #                         f"<blockquote>{call.message.text}</blockquote>",
+            #                        reply_markup=inline.ban_usr(callback_data.bottle_id)))
             messages[msg.message_id] = msg.chat.id
 
         for msg_id, chat_id in messages.items():
@@ -236,16 +257,16 @@ async def report_bottle(call: CallbackQuery, callback_data: inline.Reaction, sta
 async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
     async with async_session_maker() as session:
         stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
-        res = (await session.execute(stmt)).first()[0]
-        usr = res.author
+        bottle = (await session.execute(stmt)).first()[0]
+        usr = bottle.author
         stmt = delete(Bottle).where(Bottle.id == callback_data.bottle_id)
         await session.execute(stmt)
         await session.commit()
 
         await increment_user_value(usr, warns=User.warns+1)
 
-        await bot.send_message(chat_id=usr, text=f"<b>Вы получили предупреждение за данную бутылочку</b>:<blockquote>{res.text}</blockquote>")
-        # await call.message.answer(f"Пользователь {usr} получил предупреждение", reply_markup=reply.main)
+        # await bot.send_message(chat_id=usr, text=f"<b>Вы получили предупреждение за данную бутылочку</b>:<blockquote>{bottle.text}</blockquote>")
+        await send_bottle_multitype(bottle, usr, None, "<b>Вы получили предупреждение за данную бутылочку</b>:\n")
 
         stmt = select(ReportMsg).where(ReportMsg.report_id == callback_data.bottle_id)
         res = (await session.execute(stmt)).all()
