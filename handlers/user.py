@@ -5,7 +5,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.redis import RedisStorage
-from sqlalchemy import insert, select, update, not_
+from sqlalchemy import insert, select, update, not_, delete
 
 from keyboards import reply, inline
 from bot import bot
@@ -218,13 +218,21 @@ async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
         usr = (await session.execute(stmt)).first()[0]
         stmt = update(User).where(User.tg_id == usr).values(is_banned=True)
         await session.execute(stmt)
+        stmt = delete(Bottle).where(Bottle.id == callback_data.bottle_id)
+        await session.execute(stmt)
         await session.commit()
 
     banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
     await banned_storage.redis.set(name=usr, value=1, ex=300)
     await bot.send_message(chat_id=usr, text="Вас забанили")
     await call.message.delete_reply_markup()
-    await call.message.answer("Пользователь забанен️", reply_markup=reply.main)
+    await call.message.answer(f"Пользователь {usr} забанен️", reply_markup=reply.main)
+
+
+@router.callback_query(inline.BanUsr.filter(F.action == "not_ban_usr"))
+async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
+    await call.message.delete()
+
 #--------------------------------------------------------------------------------------------------------------
 
 

@@ -89,4 +89,8 @@ def ban_usr(bottle_id):
         text=f"бан",
         callback_data=BanUsr(action="ban_usr", bottle_id=bottle_id),
     )
+    builder.button(
+        text=f"пофиг",
+        callback_data=BanUsr(action="not_ban_usr", bottle_id=bottle_id),
+    )
     return builder.as_markup(resize_keyboard=True)
