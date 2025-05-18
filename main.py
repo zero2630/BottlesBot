@@ -6,6 +6,7 @@ from sqlalchemy import update, delete
 from handlers import user, commands
 from bot import bot, dp
 from middleware.spam_middleware import SpamMiddleware
+from middleware.ban_middleware import BanMiddleware
 from other.database import async_session_maker
 from other.models import User
 
@@ -33,10 +34,12 @@ async def main():
     loop.create_task(update_find_lim())
     loop.create_task(update_send_lim())
     storage = RedisStorage.from_url("redis://localhost:6379/0")
+    banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
     dp.include_routers(
         commands.router, user.router
     )
     dp.message.middleware.register(SpamMiddleware(storage))
+    dp.message.middleware.register(BanMiddleware(banned_storage))
     await dp.start_polling(bot)
 
 

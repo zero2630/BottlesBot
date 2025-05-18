@@ -3,13 +3,15 @@ from aiogram import Router
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from sqlalchemy import insert, select, delete
+from aiogram.fsm.storage.redis import RedisStorage
+from sqlalchemy import insert, select, delete, update
 
 from keyboards import reply
 from other import states
 from other import settings
 from other.models import User
 from other.database import async_session_maker
+from bot import bot
 
 
 router = Router()
@@ -41,6 +43,21 @@ async def command_admin(message: Message):
             await session.execute(stmt)
             await session.commit()
         await message.answer(f"user {message.text.split()[1]} deleted")
+
+
+@router.message(Command("unban"))
+async def command_admin(message: Message):
+    if str(message.from_user.id) in settings.ADMINS:
+        async with async_session_maker() as session:
+            usr_id = int(message.text.split()[1])
+            stmt = update(User).where(User.tg_id == usr_id).values(is_banned=False)
+            await session.execute(stmt)
+            await session.commit()
+
+        banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
+        await banned_storage.redis.set(name=usr_id, value=0, ex=300)
+        await message.answer(f"user {usr_id} unbanned")
+        await bot.send_message(chat_id=usr_id, text="Вас разбанили")
 
 
 @router.message(Command("getuser"))

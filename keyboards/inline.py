@@ -20,6 +20,10 @@ class UseBottles(CallbackData, prefix="use_bottles"):
     tg_id: int
 
 
+class BanUsr(CallbackData, prefix="use_bottles"):
+    action: str
+    bottle_id: int
+
 
 def action_bottle(bottle_id, react_enabled, answ_enabled):
     if not react_enabled and not answ_enabled:
@@ -38,11 +42,17 @@ def action_bottle(bottle_id, react_enabled, answ_enabled):
 
     if answ_enabled:
         builder.button(
-            text=f"✉️ ответить",
+            text=f"ответить",
             callback_data=Reaction(action="answ", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
         )
 
-    builder.adjust(2, 1)
+    if answ_enabled:
+        builder.button(
+            text=f"кинуть жалобу",
+            callback_data=Reaction(action="report", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
+        )
+
+    builder.adjust(2, 1, 1)
 
     return builder.as_markup(resize_keyboard=True)
 
@@ -69,5 +79,14 @@ def use_bottles(tg_id, action):
     builder.button(
         text=f"Да",
         callback_data=UseBottles(action=action, tg_id=tg_id),
+    )
+    return builder.as_markup(resize_keyboard=True)
+
+
+def ban_usr(bottle_id):
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=f"бан",
+        callback_data=BanUsr(action="ban_usr", bottle_id=bottle_id),
     )
     return builder.as_markup(resize_keyboard=True)

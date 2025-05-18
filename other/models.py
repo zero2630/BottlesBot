@@ -26,7 +26,7 @@ class User(Base):
     likes_amount: Mapped[int] = mapped_column(default=0)
     likes: Mapped[int] = mapped_column(default=0)
     bottles: Mapped[int] = mapped_column(default=0)
-    warns: Mapped[int] = mapped_column(default=0)
+    is_banned: Mapped[bool] = mapped_column(default=False, server_default='False')
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     bottle_relation = relationship("Bottle", back_populates="user_relation", cascade="all, delete, delete-orphan")
@@ -64,7 +64,6 @@ class ReportBottle(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     bottle: Mapped[int] = mapped_column(ForeignKey("bottle.id", ondelete="CASCADE"))
     report_author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id"))
-    report_person: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     bottle_relation = relationship("Bottle", back_populates="report_bottle_relation")

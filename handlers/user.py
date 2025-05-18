@@ -4,6 +4,7 @@ from random import choice
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.redis import RedisStorage
 from sqlalchemy import insert, select, update, not_
 
 from keyboards import reply, inline
@@ -12,6 +13,7 @@ from other import states
 from other.database import async_session_maker
 from other.models import User, Bottle, ReportBottle, Answer, Viewed
 from other.button_text import *
+from other import settings
 
 
 router = Router()
@@ -104,7 +106,6 @@ async def get_bottle(message: Message):
                 await session.commit()
 
                 await increment_user_value(message.from_user.id, find_amount=User.find_amount + 1, find_lim = User.find_lim - 1)
-                await message.answer(f"<b>Ищу подходящую бутылочку...</b>", reply_markup=reply.main)
                 await bot.send_message(message.from_user.id, f"<b>Твое послание</b>:\n{bottle.text}", reply_markup=inline.action_bottle(bottle.id, True, True))
             else:
                 await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
@@ -134,7 +135,6 @@ async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
             await session.commit()
 
             await increment_user_value(callback_data.tg_id, bottles=User.bottles-1, find_amount=User.find_amount + 1)
-            await call.message.answer(f"<b>Ищу подходящую бутылочку...</b>", reply_markup=reply.main)
             await bot.send_message(callback_data.tg_id, f"<b>Твое послание</b>:\n{bottle.text}",
                                    reply_markup=inline.action_bottle(bottle.id, True, True))
         else:
@@ -199,6 +199,32 @@ async def send_answer_success(message: Message, state: FSMContext):
     await bot.send_message(text=f"<b>Тебе ответили:</b>\n"
                            f"{message.text}", chat_id=bottle.author)
 
+
+@router.callback_query(inline.Reaction.filter(F.action == "report"))
+async def tap_answ(call: CallbackQuery, callback_data: inline.Reaction, state: FSMContext):
+    await bot.send_message(chat_id=settings.ADMINS[0],
+                           text=f"<b>⚠️Поступила новая жалоба⚠️\n"
+                            f"содержание бутылочки</b>:\n"
+                            f"<blockquote>{call.message.text}</blockquote>",
+                           reply_markup=inline.ban_usr(callback_data.bottle_id))
+
+    await call.message.answer("Жалоба была направлена модераторам ⚠️", reply_markup=reply.main)
+
+
+@router.callback_query(inline.BanUsr.filter(F.action == "ban_usr"))
+async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
+    async with async_session_maker() as session:
+        stmt = select(Bottle.author).where(Bottle.id == callback_data.bottle_id)
+        usr = (await session.execute(stmt)).first()[0]
+        stmt = update(User).where(User.tg_id == usr).values(is_banned=True)
+        await session.execute(stmt)
+        await session.commit()
+
+    banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
+    await banned_storage.redis.set(name=usr, value=1, ex=300)
+    await bot.send_message(chat_id=usr, text="Вас забанили")
+    await call.message.delete_reply_markup()
+    await call.message.answer("Пользователь забанен️", reply_markup=reply.main)
 #--------------------------------------------------------------------------------------------------------------
 
 
