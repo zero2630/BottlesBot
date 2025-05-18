@@ -1,4 +1,5 @@
 import asyncio
+import random
 from random import choice
 
 from aiogram import Router, F
@@ -24,6 +25,19 @@ async def increment_user_value(tg_id, **kwargs):
         stmt = update(User).where(User.tg_id == tg_id).values(**kwargs)
         await session.execute(stmt)
         await session.commit()
+
+
+def get_find_stmt(tg_id):
+    if random.randint(1, 2) == 1:
+        stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
+            ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == tg_id)))
+            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id))))
+    else:
+        stmt = select(Bottle).order_by(Bottle.rating.desc()
+            ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == tg_id)))
+            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id))))
+
+    return stmt
 
 
 @router.message(F.text == cancel_but)
@@ -93,9 +107,7 @@ async def get_bottle(message: Message):
         stmt = select(User.bottles).where(User.tg_id == message.from_user.id)
         bottles = (await session.execute(stmt)).first()[0]
         if find_lim > 0:
-            stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
-            ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == message.from_user.id)))
-            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == message.from_user.id))))
+            stmt = get_find_stmt(message.from_user.id)
             res = (await session.execute(stmt)).first()
             if res:
                 bottle = res[0]
@@ -122,9 +134,8 @@ async def get_bottle(message: Message):
 @router.callback_query(inline.UseBottles.filter(F.action == "use_find"))
 async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
     async with async_session_maker() as session:
-        stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
-        ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == callback_data.tg_id)))
-        ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == callback_data.tg_id))))
+        stmt = get_find_stmt(callback_data.tg_id)
+
         res = (await session.execute(stmt)).first()
         if res:
             bottle = res[0]
