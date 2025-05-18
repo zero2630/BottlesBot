@@ -38,7 +38,7 @@ async def command_start(message: Message):
 
 
 @router.message(Command("deluser"))
-async def command_admin(message: Message):
+async def command_deluser(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
         async with async_session_maker() as session:
             stmt = delete(User).where(User.tg_id == int(message.text.split()[1]))
@@ -48,7 +48,7 @@ async def command_admin(message: Message):
 
 
 @router.message(Command("unban"))
-async def command_admin(message: Message):
+async def command_unban(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
         async with async_session_maker() as session:
             usr_id = int(message.text.split()[1])
@@ -63,7 +63,7 @@ async def command_admin(message: Message):
 
 
 @router.message(Command("send_all"))
-async def command_admin(message: Message):
+async def command_sendall(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
         async with async_session_maker() as session:
             stmt = select(User.tg_id)
@@ -79,7 +79,22 @@ async def command_admin(message: Message):
                     None
 
 
+@router.message(Command("ban"))
+async def command_ban(message: Message):
+    if str(message.from_user.id) in settings.ADMINS:
+        async with async_session_maker() as session:
+            usr = int(message.text.split()[1])
+            stmt = update(User).where(User.tg_id == usr).values(is_banned=True)
+            await session.execute(stmt)
+            await session.commit()
+
+        banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
+        await banned_storage.redis.set(name=usr, value=1, ex=300)
+        await bot.send_message(chat_id=usr, text="Вас забанили")
+        await message.answer(f"Пользователь {usr} забанен️", reply_markup=reply.main)
+
+
 @router.message(Command("isadmin"))
-async def command_admin(message: Message):
+async def command_isadmin(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
         await message.answer(f"true")

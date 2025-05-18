@@ -86,8 +86,8 @@ def use_bottles(tg_id, action):
 def ban_usr(bottle_id):
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=f"бан",
-        callback_data=BanUsr(action="ban_usr", bottle_id=bottle_id),
+        text=f"предупреждение",
+        callback_data=BanUsr(action="warn_usr", bottle_id=bottle_id),
     )
     builder.button(
         text=f"пофиг",

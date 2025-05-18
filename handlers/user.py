@@ -11,7 +11,7 @@ from keyboards import reply, inline
 from bot import bot
 from other import states
 from other.database import async_session_maker
-from other.models import User, Bottle, ReportBottle, Answer, Viewed
+from other.models import User, Bottle, Answer, Viewed, ReportMsg
 from other.button_text import *
 from other import settings
 
@@ -201,32 +201,47 @@ async def send_answer_success(message: Message, state: FSMContext):
 
 
 @router.callback_query(inline.Reaction.filter(F.action == "report"))
-async def tap_answ(call: CallbackQuery, callback_data: inline.Reaction, state: FSMContext):
-    await bot.send_message(chat_id=settings.ADMINS[0],
-                           text=f"<b>⚠️Поступила новая жалоба⚠️\n"
-                            f"содержание бутылочки</b>:\n"
-                            f"<blockquote>{call.message.text}</blockquote>",
-                           reply_markup=inline.ban_usr(callback_data.bottle_id))
+async def report_bottle(call: CallbackQuery, callback_data: inline.Reaction, state: FSMContext):
+    async with async_session_maker() as session:
+        messages = {}
+        for i in range(len(settings.MODERATORS)):
+            msg = (await bot.send_message(chat_id=settings.MODERATORS[i],
+                                   text=f"<b>⚠️Поступила новая жалоба⚠️\n"
+                                    f"содержание бутылочки</b>:\n"
+                                    f"<blockquote>{call.message.text}</blockquote>",
+                                   reply_markup=inline.ban_usr(callback_data.bottle_id)))
+            messages[msg.message_id] = msg.chat.id
+
+        for msg_id, chat_id in messages.items():
+            stmt = insert(ReportMsg).values(msg_id=msg_id, chat_id=chat_id, report_id=callback_data.bottle_id)
+            await session.execute(stmt)
+        await session.commit()
+
 
     await call.message.answer("Жалоба была направлена модераторам ⚠️", reply_markup=reply.main)
 
 
-@router.callback_query(inline.BanUsr.filter(F.action == "ban_usr"))
+@router.callback_query(inline.BanUsr.filter(F.action == "warn_usr"))
 async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
     async with async_session_maker() as session:
-        stmt = select(Bottle.author).where(Bottle.id == callback_data.bottle_id)
-        usr = (await session.execute(stmt)).first()[0]
-        stmt = update(User).where(User.tg_id == usr).values(is_banned=True)
-        await session.execute(stmt)
+        stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
+        res = (await session.execute(stmt)).first()[0]
+        usr = res.author
         stmt = delete(Bottle).where(Bottle.id == callback_data.bottle_id)
         await session.execute(stmt)
         await session.commit()
 
-    banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
-    await banned_storage.redis.set(name=usr, value=1, ex=300)
-    await bot.send_message(chat_id=usr, text="Вас забанили")
-    await call.message.delete_reply_markup()
-    await call.message.answer(f"Пользователь {usr} забанен️", reply_markup=reply.main)
+        await increment_user_value(usr, warns=User.warns+1)
+
+        await bot.send_message(chat_id=usr, text=f"<b>Вы получили предупреждение за данную бутылочку</b>:<blockquote>{res.text}</blockquote>")
+        # await call.message.answer(f"Пользователь {usr} получил предупреждение", reply_markup=reply.main)
+
+        stmt = select(ReportMsg).where(ReportMsg.report_id == callback_data.bottle_id)
+        res = (await session.execute(stmt)).all()
+        for el in res:
+            await bot.send_message(chat_id=el[0].chat_id, text=f"Пользователь {usr} получил предупреждение")
+            await bot.delete_message(chat_id=el[0].chat_id, message_id=el[0].msg_id)
+        stmt = delete(ReportMsg).where(ReportMsg.report_id == callback_data.bottle_id)
 
 
 @router.callback_query(inline.BanUsr.filter(F.action == "not_ban_usr"))
