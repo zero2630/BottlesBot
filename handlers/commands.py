@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram.filters import Command, CommandStart
 from aiogram import Router
 from aiogram.types import Message
@@ -60,15 +62,21 @@ async def command_admin(message: Message):
         await bot.send_message(chat_id=usr_id, text="Вас разбанили")
 
 
-@router.message(Command("getuser"))
+@router.message(Command("send_all"))
 async def command_admin(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
-        usr_id = int(message.text.split()[1])
-        button_url = f'tg://user?id={usr_id}'
-        inline_kb_list = [
-            [InlineKeyboardButton(text="get_user", url=button_url)],
-        ]
-        await message.answer(text=f'get_user', reply_markup=InlineKeyboardMarkup(inline_keyboard=inline_kb_list))
+        async with async_session_maker() as session:
+            stmt = select(User.tg_id)
+            ids = (await session.execute(stmt)).all()
+            await session.commit()
+
+            send_text = " ".join(message.text.split(" ")[1:])
+            tasks = [asyncio.create_task(bot.send_message(chat_id=usr[0], text=send_text)) for usr in ids]
+            for task in asyncio.as_completed(tasks):
+                try:
+                    await task
+                except:
+                    None
 
 
 @router.message(Command("isadmin"))
