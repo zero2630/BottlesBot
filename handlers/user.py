@@ -137,7 +137,9 @@ async def get_bottle(message: Message):
                 await session.commit()
 
                 await increment_user_value(message.from_user.id, find_amount=User.find_amount + 1, find_lim = User.find_lim - 1)
-                await send_bottle_multitype(bottle, message.from_user.id, inline.action_bottle(bottle.id, True, True), "<b>Твое послание</b>:\n")
+                await send_bottle_multitype(bottle, message.from_user.id,
+                                            inline.action_bottle(bottle.id, True, True),
+                                            f"<b>Твое послание</b>:\n<i>{str(bottle.created_at)[:16]}</i>\n\n")
             else:
                 await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
         else:
@@ -165,7 +167,9 @@ async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
             await session.commit()
 
             await increment_user_value(callback_data.tg_id, bottles=User.bottles-1, find_amount=User.find_amount + 1)
-            await send_bottle_multitype(bottle, message.from_user.id, inline.action_bottle(bottle.id, True, True), "<b>Твое послание</b>:\n")
+            await send_bottle_multitype(bottle, callback_data.tg_id,
+                                        inline.action_bottle(bottle.id, True, True),
+                                        f"<b>Твое послание</b>:\n<i>{str(bottle.created_at)[:16]}</i>\n\n")
         else:
             await call.message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
 

@@ -15,6 +15,11 @@ class SpamMiddleware():
                  data: Dict[str, Any]
                  ):
         user = event.from_user.id
+        text = event.text
+
+        if len(text) > 1000:
+            await event.answer("Слишком большой текст сообщения")
+            return None
 
         check_user = await self.storage.redis.get(name=user)
 
