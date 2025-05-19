@@ -25,6 +25,7 @@ class User(Base):
     receive_amount: Mapped[int] = mapped_column(default=0)
     likes_amount: Mapped[int] = mapped_column(default=0)
     likes: Mapped[int] = mapped_column(default=0)
+    rating_place: Mapped[int] = mapped_column(default=0, server_default='0')
     bottles: Mapped[int] = mapped_column(default=0)
     warns: Mapped[int] = mapped_column(default=0, server_default='0')
     is_banned: Mapped[bool] = mapped_column(default=False, server_default='False')

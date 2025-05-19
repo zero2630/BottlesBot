@@ -69,11 +69,11 @@ async def send_bottle(message: Message, state: FSMContext):
 
         elif bottles>0:
             await message.answer(
-                f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 5 минут.\n<b>Имеется {bottles} доп. бутылок\nИспользовать?</b>",
+                f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 60 секунд.\n<b>Имеется {bottles} доп. бутылок\nИспользовать?</b>",
                 reply_markup=inline.use_bottles(message.from_user.id, "use_send"))
 
         else:
-            await message.answer(f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 5 минут.", reply_markup=reply.main)
+            await message.answer(f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 60 секунд.", reply_markup=reply.main)
 
 
 @router.callback_query(inline.UseBottles.filter(F.action == "use_send"))
@@ -299,7 +299,8 @@ async def bottle_history(message: Message, state: FSMContext):
                          f"<b>ответов получено</b>: {usr.receive_amount}\n"
                          f"<b>всего</b>: {usr.likes_amount} ❤️\n"
                          f"<b>на балансе</b>: {usr.likes} ❤️\n"
-                         f"<b>на балансе</b>: {usr.bottles} 🍾\n",
+                         f"<b>на балансе</b>: {usr.bottles} 🍾\n\n"
+                         f"<b>место в рейтинге</b>: {usr.rating_place} 🏆\n",
                          reply_markup=reply.main)
 
 
