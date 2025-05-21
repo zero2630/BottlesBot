@@ -22,9 +22,13 @@ class UseBottles(CallbackData, prefix="use_bottles"):
     tg_id: int
 
 
-class BanUsr(CallbackData, prefix="use_bottles"):
+class BanUsr(CallbackData, prefix="ban_usr"):
     action: str
     bottle_id: int
+
+
+class AnswAdmin(CallbackData, prefix="ban_usr"):
+    action: str
 
 
 def action_bottle(bottle_id, react_enabled, answ_enabled):
@@ -56,6 +60,15 @@ def action_bottle(bottle_id, react_enabled, answ_enabled):
 
     builder.adjust(2, 1, 1)
 
+    return builder.as_markup(resize_keyboard=True)
+
+
+def answ_admin():
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=f"ответить",
+        callback_data=AnswAdmin(action="answ_admin")
+    )
     return builder.as_markup(resize_keyboard=True)
 
 

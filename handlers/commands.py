@@ -1,8 +1,8 @@
 import asyncio
 
 from aiogram.filters import Command, CommandStart
-from aiogram import Router
-from aiogram.types import Message
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.redis import RedisStorage
@@ -13,6 +13,7 @@ from other import states
 from other import settings
 from other.models import User
 from other.database import async_session_maker
+from keyboards import inline
 from bot import bot
 
 
@@ -71,12 +72,29 @@ async def command_sendall(message: Message):
             await session.commit()
 
             send_text = " ".join(message.text.split(" ")[1:])
-            tasks = [asyncio.create_task(bot.send_message(chat_id=usr[0], text=send_text)) for usr in ids]
+            tasks = [asyncio.create_task(bot.send_message(chat_id=usr[0], text=send_text, reply_markup=inline.answ_admin())) for usr in ids]
             for task in asyncio.as_completed(tasks):
                 try:
                     await task
                 except:
                     None
+
+
+@router.callback_query(inline.AnswAdmin.filter(F.action == "answ_admin"))
+async def tap_answ_admin(call: CallbackQuery, callback_data: inline.AnswAdmin, state: FSMContext):
+    await state.set_state(states.AnswAdmin.answ)
+    await call.message.edit_reply_markup(reply_markup=None)
+    await call.message.answer("Напиши свой ответ:", reply_markup=reply.main)
+
+
+@router.message(states.AnswAdmin.answ)
+async def send_answer_admin_success(message: Message, state: FSMContext):
+    await state.clear()
+
+    await message.answer("Ответ был направлен админу")
+
+    for usr in settings.ADMINS:
+        await bot.send_message(chat_id=usr, text=f"Вам написал пользователь:\n<blockquote>{message.text}</blockquote>")
 
 
 @router.message(Command("ban"))

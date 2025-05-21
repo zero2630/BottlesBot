@@ -12,3 +12,7 @@ class SendBottle(StatesGroup):
 
 class BuyBottle(StatesGroup):
     buy_bottle = State()
+
+
+class AnswAdmin(StatesGroup):
+    answ = State()
