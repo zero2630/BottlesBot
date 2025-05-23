@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 
 from aiogram.filters import Command, CommandStart
 from aiogram import Router, F
@@ -6,12 +7,13 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.utils.deep_linking import create_start_link, decode_payload
 from sqlalchemy import insert, select, delete, update
 
 from keyboards import reply
 from other import states
 from other import settings
-from other.models import User
+from other.models import User, RefLink
 from other.database import async_session_maker
 from keyboards import inline
 from bot import bot
@@ -20,9 +22,28 @@ from bot import bot
 router = Router()
 
 
+@router.message(CommandStart(deep_link=True))
+async def command_start(message: Message, command: Command):
+    text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
+            "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
+            "Все послания <b>анонимны</b>")
+
+    async with async_session_maker() as session:
+        stmt = select(User).where(User.tg_id == message.from_user.id)
+        res = (await session.execute(stmt)).first()
+        if not res:
+            reflink_uid = command.args
+            stmt = update(RefLink).where(RefLink.uid == reflink_uid).values(count=RefLink.count + 1)
+            await session.execute(stmt)
+            stmt = insert(User).values(tg_id=message.from_user.id)
+            await session.execute(stmt)
+        await session.commit()
+
+    await message.answer(text, reply_markup=reply.main)
+
+
 @router.message(CommandStart())
-async def command_start(message: Message):
-    print(message.from_user.id)
+async def command_start(message: Message, command: Command):
     text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
             "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
             "Все послания <b>анонимны</b>")
@@ -116,3 +137,17 @@ async def command_ban(message: Message):
 async def command_isadmin(message: Message):
     if str(message.from_user.id) in settings.ADMINS:
         await message.answer(f"true")
+
+
+@router.message(Command("create_invite"))
+async def command_create_invite(message: Message, command: Command):
+    if str(message.from_user.id) in settings.ADMINS:
+        reflink_name = command.args
+        reflink_hash = hashlib.md5(reflink_name.encode("utf-8")).hexdigest()
+    async with async_session_maker() as session:
+        stmt = insert(RefLink).values(uid=reflink_hash, name=reflink_name)
+        await session.execute(stmt)
+        await session.commit()
+
+    link = await create_start_link(bot, reflink_hash)
+    await message.answer(f"link: {link}")

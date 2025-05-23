@@ -87,3 +87,11 @@ class Liked(Base):
     bottle: Mapped[int] = mapped_column(ForeignKey("bottle.id", ondelete="CASCADE"))
 
     bottle_relation = relationship("Bottle", back_populates="liked_relation")
+
+
+class RefLink(Base):
+    __tablename__ = "ref_link"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[str] = mapped_column(String(32), unique=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    count: Mapped[int] = mapped_column(server_default="0")
