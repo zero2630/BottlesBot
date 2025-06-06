@@ -32,12 +32,3 @@ bottle_history_type = ReplyKeyboardMarkup(
 cancel = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text=cancel_but)]], resize_keyboard=True
 )
-
-
-def find_bottle(find_lim, bottles):
-    builder = ReplyKeyboardBuilder()
-
-    builder.row(KeyboardButton(text=f"{find_lim}/5 🔎"), KeyboardButton(text=f"{bottles} 🍾"))
-    builder.row(KeyboardButton(text="отмена"))
-
-    return builder.as_markup(resize_keyboard=True)

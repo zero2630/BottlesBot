@@ -13,7 +13,7 @@ from sqlalchemy import insert, select, delete, update
 from keyboards import reply
 from other import states
 from other import settings
-from other.models import User, RefLink
+from other.models import User, RefLink, UserSettings
 from other.database import async_session_maker
 from keyboards import inline
 from bot import bot
@@ -37,6 +37,9 @@ async def command_start(message: Message, command: Command):
             await session.execute(stmt)
             stmt = insert(User).values(tg_id=message.from_user.id)
             await session.execute(stmt)
+            await session.commit()
+            stmt = insert(UserSettings).values(usr=message.from_user.id)
+            await session.execute(stmt)
         await session.commit()
 
     await message.answer(text, reply_markup=reply.main)
@@ -51,8 +54,12 @@ async def command_start(message: Message, command: Command):
     async with async_session_maker() as session:
         stmt = select(User).where(User.tg_id == message.from_user.id)
         res = (await session.execute(stmt)).first()
+        print(res)
         if not res:
             stmt = insert(User).values(tg_id=message.from_user.id)
+            await session.execute(stmt)
+            await session.commit()
+            stmt = insert(UserSettings).values(usr=message.from_user.id)
             await session.execute(stmt)
         await session.commit()
 

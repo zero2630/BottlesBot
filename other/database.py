@@ -25,13 +25,13 @@ async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 #         yield session
 
 
-# async def create_tables():
-#     from models import Base
-#
-#     async with engine.begin() as conn:
-#         await conn.run_sync(Base.metadata.drop_all)
-#         await conn.run_sync(Base.metadata.create_all)
-#
-#
-# if __name__ == "__main__":
-#     asyncio.run(create_tables())
+async def create_tables():
+    from models import Base
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+
+if __name__ == "__main__":
+    asyncio.run(create_tables())

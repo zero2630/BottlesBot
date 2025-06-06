@@ -32,6 +32,17 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     bottle_relation = relationship("Bottle", back_populates="user_relation", cascade="all, delete, delete-orphan")
+    settings_relation = relationship("UserSettings", back_populates="user_relation", cascade="all, delete, delete-orphan")
+
+
+class UserSettings(Base):
+    __tablename__ = "usr_settings"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usr: Mapped[int] = mapped_column(ForeignKey("bot_user.tg_id", ondelete="CASCADE"))
+    p_like_notif: Mapped[bool] = mapped_column(server_default="true")
+    p_send_rand: Mapped[bool] = mapped_column(server_default="true")
+
+    user_relation = relationship("User", back_populates="settings_relation")
 
 
 class Bottle(Base):
@@ -42,6 +53,8 @@ class Bottle(Base):
     file_id: Mapped[str] = mapped_column(Text, server_default="")
     author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id", ondelete="CASCADE"))
     views: Mapped[int] = mapped_column(default=0)
+    likes: Mapped[int] = mapped_column(server_default="0")
+    dislikes: Mapped[int] = mapped_column(server_default="0")
     rating: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

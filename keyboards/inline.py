@@ -31,18 +31,25 @@ class AnswAdmin(CallbackData, prefix="ban_usr"):
     action: str
 
 
-def action_bottle(bottle_id, react_enabled, answ_enabled):
+class Settings(CallbackData, prefix="settings"):
+    action: str
+    tg_id: int
+    par1: bool
+    par2: bool
+
+
+def action_bottle(bottle_id, react_enabled, answ_enabled, likes=0, dislikes=0):
     if not react_enabled and not answ_enabled:
         return None
 
     builder = InlineKeyboardBuilder()
     if react_enabled:
         builder.button(
-            text=f"❤️",
+            text=f"{likes} ❤️",
             callback_data=Reaction(action="like", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
         )
         builder.button(
-            text=f"🤮",
+            text=f"{dislikes} 🤮",
             callback_data=Reaction(action="dislike", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
         )
 
@@ -86,6 +93,25 @@ def buy_bottles(tg_id):
         text=f"10 🍾",
         callback_data=BuyBottles(action="buy_1", amount=10, tg_id=tg_id),
     )
+    return builder.as_markup(resize_keyboard=True)
+
+
+def settings(tg_id, par1, par2):
+    vals = {
+        True: "✅",
+        False: "❌"
+    }
+
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=f"{vals[par1]} | присылать уведомления о ❤️",
+        callback_data=Settings(action="like_notif", tg_id=tg_id, par1=par1, par2=par2),
+    )
+    builder.button(
+        text=f"{vals[par2]} | присылать случайную бутылочку раз в день",
+        callback_data=Settings(action="send_rand", tg_id=tg_id, par1=par1, par2=par2),
+    )
+    builder.adjust(1, 1)
     return builder.as_markup(resize_keyboard=True)
 
 
