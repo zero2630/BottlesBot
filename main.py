@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 
 from aiogram.fsm.storage.redis import RedisStorage
 from sqlalchemy import update, delete, select
@@ -37,15 +38,16 @@ async def update_rating():
 
 async def random_bottle():
     while True:
-        async with async_session_maker() as session:
-            stmt = select(UserSettings.usr).where(UserSettings.p_send_rand == True)
-            users = (await session.execute(stmt)).all()
-            tasks = [asyncio.create_task(user.get_rand_bottle(users[i][0])) for i in range(len(users))]
-            for task in asyncio.as_completed(tasks):
-                await task
+        if datetime.now().hour == 17:
+            async with async_session_maker() as session:
+                stmt = select(UserSettings.usr).where(UserSettings.p_send_rand == True)
+                users = (await session.execute(stmt)).all()
+                tasks = [asyncio.create_task(user.get_rand_bottle(users[i][0])) for i in range(len(users))]
+                for task in asyncio.as_completed(tasks):
+                    await task
 
-            await session.commit()
-        await asyncio.sleep(10)
+                await session.commit()
+        await asyncio.sleep(1800)
 
 
 async def main():
