@@ -2,14 +2,14 @@ import asyncio
 from datetime import datetime
 
 from aiogram.fsm.storage.redis import RedisStorage
-from sqlalchemy import update, delete, select
+from sqlalchemy import update, delete, select, insert
 
 from handlers import user, commands
 from bot import bot, dp
 from middleware.spam_middleware import SpamMiddleware
 from middleware.ban_middleware import BanMiddleware
 from other.database import async_session_maker
-from other.models import User, UserSettings
+from other.models import User, UserSettings, OnlineInfo
 
 
 async def update_lim():
@@ -48,11 +48,24 @@ async def random_bottle():
         await asyncio.sleep(3600)
 
 
+async def update_online():
+    while True:
+        async with async_session_maker() as session:
+            banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
+            a = len(await banned_storage.redis.keys())-1
+            await banned_storage.redis.set(name="online", value=a, ex=600)
+            stmt = insert(OnlineInfo).values(value=a)
+            await session.execute(stmt)
+            await session.commit()
+        await asyncio.sleep(300)
+
+
 async def main():
     loop = asyncio.get_event_loop()
     loop.create_task(update_lim())
     loop.create_task(update_rating())
     loop.create_task(random_bottle())
+    loop.create_task(update_online())
     storage = RedisStorage.from_url("redis://localhost:6379/0")
     banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
     dp.include_routers(

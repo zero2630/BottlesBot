@@ -31,7 +31,7 @@ class BanMiddleware():
                 res = (await session.execute(stmt)).first()
                 if res:
                     is_banned = int(res[0])
-                    await self.storage.redis.set(name=user, value=is_banned, ex=300)
+                    await self.storage.redis.set(name=user, value=is_banned, ex=10)
                     if is_banned:
                         return None
 

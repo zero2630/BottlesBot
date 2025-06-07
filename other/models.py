@@ -108,3 +108,10 @@ class RefLink(Base):
     uid: Mapped[str] = mapped_column(String(32), unique=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
     count: Mapped[int] = mapped_column(server_default="0")
+
+
+class OnlineInfo(Base):
+    __tablename__ = "online_info"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    value: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -158,3 +158,10 @@ async def command_create_invite(message: Message, command: Command):
 
     link = await create_start_link(bot, reflink_hash)
     await message.answer(f"link: {link}")
+
+
+@router.message(Command("online"))
+async def check_online(message: Message):
+    banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
+    val = await banned_storage.redis.get(name="online")
+    await message.answer(f"<b>Текущий онлайн</b>: {int(val)} человек")
