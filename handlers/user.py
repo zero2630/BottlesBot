@@ -186,7 +186,7 @@ async def tap_like(call: CallbackQuery, callback_data: inline.Reaction):
         stmt = update(Bottle).where(Bottle.id == callback_data.bottle_id).values(rating=Bottle.rating+10, likes=Bottle.likes+1)
         await session.execute(stmt)
         stmt = select(UserSettings.p_like_notif).where(UserSettings.usr == bottle_author)
-        send_notif = (await session.execute(stmt)).first()[0]
+        # send_notif = (await session.execute(stmt)).first()[0]
         await session.commit()
 
     await increment_user_value(bottle_author, likes=User.likes + 1)
@@ -194,8 +194,8 @@ async def tap_like(call: CallbackQuery, callback_data: inline.Reaction):
     await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled))
     await call.message.answer("❤️", reply_markup=reply.main)
 
-    if send_notif:
-        await bot.send_message(bottle_author, "Вам отправили ❤️")
+    # if send_notif:
+    await bot.send_message(bottle_author, "Вам отправили ❤️")
 
 
 @router.callback_query(inline.Reaction.filter(F.action == "dislike"))
@@ -211,6 +211,9 @@ async def tap_dislike(call: CallbackQuery, callback_data: inline.Reaction):
 
 @router.callback_query(inline.Reaction.filter(F.action == "answ"))
 async def tap_answ(call: CallbackQuery, callback_data: inline.Reaction, state: FSMContext):
+    async with async_session_maker() as session:
+        stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
+        bottle = (await session.execute(stmt)).first()[0]
     await state.set_state(states.SendAnswer.answ)
     await state.update_data(answ=callback_data)
     await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, callback_data.react_enabled, False, bottle.likes, bottle.dislikes))
