@@ -36,9 +36,9 @@ async def update_rating():
 
 async def random_bottle():
     while True:
-        if datetime.now().hour == 11:
+        if datetime.now().hour == 17:
             async with async_session_maker() as session:
-                stmt = select(UserSettings.usr).where(UserSettings.p_send_rand == True)
+                stmt = select(User.tg_id)
                 users = (await session.execute(stmt)).all()
                 tasks = [asyncio.create_task(user.get_rand_bottle(users[i][0])) for i in range(len(users))]
                 for task in asyncio.as_completed(tasks):

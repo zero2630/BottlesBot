@@ -264,7 +264,7 @@ async def report_bottle(call: CallbackQuery, callback_data: inline.Reaction, sta
             await session.execute(stmt)
         await session.commit()
 
-
+    await call.message.delete_reply_markup()
     await call.message.answer("Жалоба была направлена модераторам ⚠️", reply_markup=reply.main)
 
 
@@ -322,8 +322,9 @@ async def buy_menu(message: Message, state: FSMContext):
         settings = (await session.execute(stmt)).first()[0]
         await session.commit()
 
-    await message.answer(f"<b>Твои настройки:</b>",
-                         reply_markup=inline.settings(message.from_user.id, settings.p_like_notif, settings.p_send_rand))
+    await message.answer("<i>пока в разработке</i>")
+    # await message.answer(f"<b>Твои настройки:</b>",
+    #                      reply_markup=inline.settings(message.from_user.id, settings.p_like_notif, settings.p_send_rand))
 
 
 @router.callback_query(inline.Settings.filter(F.action == "send_rand"))
