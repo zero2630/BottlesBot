@@ -15,12 +15,10 @@ from other.models import User, UserSettings
 async def update_lim():
     while True:
         async with async_session_maker() as session:
-            stmt = update(User).where(User.find_lim < 5).values(find_lim = User.find_lim + 1)
-            await session.execute(stmt)
             stmt = update(User).where(User.send_lim < 3).values(send_lim=User.send_lim + 1)
             await session.execute(stmt)
             await session.commit()
-        await asyncio.sleep(30)
+        await asyncio.sleep(60)
 
 
 async def update_rating():
@@ -38,7 +36,7 @@ async def update_rating():
 
 async def random_bottle():
     while True:
-        if datetime.now().hour == 17:
+        if datetime.now().hour == 11:
             async with async_session_maker() as session:
                 stmt = select(UserSettings.usr).where(UserSettings.p_send_rand == True)
                 users = (await session.execute(stmt)).all()
@@ -47,7 +45,7 @@ async def random_bottle():
                     await task
 
                 await session.commit()
-        await asyncio.sleep(1800)
+        await asyncio.sleep(3600)
 
 
 async def main():

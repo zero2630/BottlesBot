@@ -62,7 +62,7 @@ async def get_rand_bottle(tg_id):
             await session.execute(stmt)
             await session.commit()
 
-            await increment_user_value(tg_id, find_amount=User.find_amount + 1, find_lim = User.find_lim - 1)
+            await increment_user_value(tg_id, find_amount=User.find_amount + 1)
             date = datetime.strptime(str(bottle.created_at)[:16], "%Y-%m-%d %H:%M")
             date = date + timedelta(hours=3)
             str_date = date.strftime("%Y-%m-%d %H:%M")
@@ -86,34 +86,32 @@ async def send_bottle(message: Message, state: FSMContext):
         bottles = (await session.execute(stmt)).first()[0]
         if send_lim > 0:
             await state.set_state(states.SendBottle.bottle_text)
-            await state.update_data(bottle_text='send_lim')
             await message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
         else:
             await message.answer(f"Лимит отправки посланий исчерпан.\nОн обновляется каждые 60 секунд.", reply_markup=reply.main)
 
 
-@router.callback_query(inline.UseBottles.filter(F.action == "use_send"))
-async def use_bottle_send(call: CallbackQuery, callback_data: inline.UseBottles, state:FSMContext):
-    await state.set_state(states.SendBottle.bottle_text)
-    await state.update_data(bottle_text='bottles')
-    await call.message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
+# @router.callback_query(inline.UseBottles.filter(F.action == "use_send"))
+# async def use_bottle_send(call: CallbackQuery, callback_data: inline.UseBottles, state:FSMContext):
+#     await state.set_state(states.SendBottle.bottle_text)
+#     await state.update_data(bottle_text='bottles')
+#     await call.message.answer(f"Напиши свое послание:", reply_markup=reply.cancel)
 
 
+# случай с текстом
 @router.message(states.SendBottle.bottle_text, F.text)
 async def send_bottle_success(message: Message, state: FSMContext):
     async with async_session_maker() as session:
         stmt = insert(Bottle).values(text=message.text, author=message.from_user.id, type="text")
         await session.execute(stmt)
         await session.commit()
-    if (await state.get_data())["bottle_text"] == "send_lim":
         await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
-    else:
-        await increment_user_value(message.from_user.id, send_amount=User.send_amount + 1, bottles=User.bottles - 1)
 
     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
     await state.clear()
 
 
+# случай с фото
 @router.message(states.SendBottle.bottle_text, F.photo)
 async def send_bottle_success(message: Message, state: FSMContext):
     async with async_session_maker() as session:
@@ -123,10 +121,7 @@ async def send_bottle_success(message: Message, state: FSMContext):
         stmt = insert(Bottle).values(text=photo_caption, author=message.from_user.id, type="img", file_id=message.photo[-1].file_id)
         await session.execute(stmt)
         await session.commit()
-    if (await state.get_data())["bottle_text"] == "send_lim":
         await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
-    else:
-        await increment_user_value(message.from_user.id, send_amount=User.send_amount + 1, bottles=User.bottles - 1)
 
     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
     await state.clear()
@@ -147,7 +142,7 @@ async def get_bottle(message: Message):
             await session.execute(stmt)
             await session.commit()
 
-            await increment_user_value(message.from_user.id, find_amount=User.find_amount + 1, find_lim = User.find_lim - 1)
+            await increment_user_value(message.from_user.id, find_amount=User.find_amount + 1)
             date = datetime.strptime(str(bottle.created_at)[:16], "%Y-%m-%d %H:%M")
             date = date + timedelta(hours=3)
             str_date = date.strftime("%Y-%m-%d %H:%M")
@@ -158,29 +153,29 @@ async def get_bottle(message: Message):
             await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
 
 
-@router.callback_query(inline.UseBottles.filter(F.action == "use_find"))
-async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
-    async with async_session_maker() as session:
-        stmt = get_find_stmt(callback_data.tg_id)
-
-        res = (await session.execute(stmt)).first()
-        if res:
-            bottle = res[0]
-            stmt = update(Bottle).where(Bottle.id == bottle.id).values(views=bottle.views + 1)
-            await session.execute(stmt)
-            stmt = insert(Viewed).values(person=callback_data.tg_id, bottle=bottle.id)
-            await session.execute(stmt)
-            await session.commit()
-
-            await increment_user_value(callback_data.tg_id, bottles=User.bottles-1, find_amount=User.find_amount + 1)
-            date = datetime.strptime(str(bottle.created_at)[:16], "%Y-%m-%d %H:%M")
-            date = date + timedelta(hours=3)
-            str_date = date.strftime("%Y-%m-%d %H:%M")
-            await send_bottle_multitype(bottle, callback_data.tg_id,
-                                        inline.action_bottle(bottle.id, True, True, bottle.likes, bottle.dislikes),
-                                        f"<b>Твое послание</b>:\n<i>{str_date} МСК</i>\n\n")
-        else:
-            await call.message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
+# @router.callback_query(inline.UseBottles.filter(F.action == "use_find"))
+# async def use_bottle(call: CallbackQuery, callback_data: inline.UseBottles):
+#     async with async_session_maker() as session:
+#         stmt = get_find_stmt(callback_data.tg_id)
+#
+#         res = (await session.execute(stmt)).first()
+#         if res:
+#             bottle = res[0]
+#             stmt = update(Bottle).where(Bottle.id == bottle.id).values(views=bottle.views + 1)
+#             await session.execute(stmt)
+#             stmt = insert(Viewed).values(person=callback_data.tg_id, bottle=bottle.id)
+#             await session.execute(stmt)
+#             await session.commit()
+#
+#             await increment_user_value(callback_data.tg_id, bottles=User.bottles-1, find_amount=User.find_amount + 1)
+#             date = datetime.strptime(str(bottle.created_at)[:16], "%Y-%m-%d %H:%M")
+#             date = date + timedelta(hours=3)
+#             str_date = date.strftime("%Y-%m-%d %H:%M")
+#             await send_bottle_multitype(bottle, callback_data.tg_id,
+#                                         inline.action_bottle(bottle.id, True, True, bottle.likes, bottle.dislikes),
+#                                         f"<b>Твое послание</b>:\n<i>{str_date} МСК</i>\n\n")
+#         else:
+#             await call.message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
 
 
 @router.callback_query(inline.Reaction.filter(F.action == "like"))
@@ -311,8 +306,6 @@ async def bottle_history(message: Message, state: FSMContext):
                          f"<b>бутылок найдено</b>: {usr.find_amount}\n"
                          f"<b>ответов получено</b>: {usr.receive_amount}\n"
                          f"<b>всего</b>: {usr.likes_amount} ❤️\n"
-                         f"<b>на балансе</b>: {usr.likes} ❤️\n"
-                         f"<b>на балансе</b>: {usr.bottles} 🍾\n\n"
                          f"<b>место в рейтинге</b>: {usr.rating_place} 🏆\n",
                          reply_markup=reply.main)
 
