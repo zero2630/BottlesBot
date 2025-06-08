@@ -56,12 +56,14 @@ class Bottle(Base):
     likes: Mapped[int] = mapped_column(server_default="0")
     dislikes: Mapped[int] = mapped_column(server_default="0")
     rating: Mapped[int] = mapped_column(default=0)
+    is_active: Mapped[bool] = mapped_column(server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user_relation = relationship("User", back_populates="bottle_relation")
     viewed_relation = relationship("Viewed", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
     liked_relation = relationship("Liked", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
     answer_relation = relationship("Answer", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
+    report_relation = relationship("Report", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
 
 
 class Answer(Base):
@@ -75,13 +77,15 @@ class Answer(Base):
     bottle_relation = relationship("Bottle", back_populates="answer_relation")
 
 
-class ReportMsg(Base):
+class Report(Base):
     __tablename__ = "report_msg"
     id: Mapped[int] = mapped_column(primary_key=True)
-    msg_id: Mapped[int] = mapped_column(BigInteger)
-    chat_id: Mapped[int] = mapped_column(BigInteger)
-    report_id: Mapped[int] = mapped_column(BigInteger)
+    bottle: Mapped[int] = mapped_column(ForeignKey("bottle.id", ondelete="CASCADE"))
+    report_author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id"))
+    is_closed: Mapped[bool] = mapped_column(server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    bottle_relation = relationship("Bottle", back_populates="report_relation")
 
 
 class Viewed(Base):

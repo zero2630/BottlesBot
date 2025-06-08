@@ -9,6 +9,7 @@ class Reaction(CallbackData, prefix="reaction"):
     bottle_id: int
     react_enabled: bool
     answ_enabled: bool
+    tg_id: int
 
 
 class BuyBottles(CallbackData, prefix="buy_bottles"):
@@ -25,6 +26,7 @@ class UseBottles(CallbackData, prefix="use_bottles"):
 class BanUsr(CallbackData, prefix="ban_usr"):
     action: str
     bottle_id: int
+    rep_author_id: int
 
 
 class AnswAdmin(CallbackData, prefix="ban_usr"):
@@ -38,7 +40,7 @@ class Settings(CallbackData, prefix="settings"):
     par2: bool
 
 
-def action_bottle(bottle_id, react_enabled, answ_enabled, likes=0, dislikes=0):
+def action_bottle(bottle_id, react_enabled, answ_enabled, tg_id, likes=0, dislikes=0):
     if not react_enabled and not answ_enabled:
         return None
 
@@ -46,23 +48,23 @@ def action_bottle(bottle_id, react_enabled, answ_enabled, likes=0, dislikes=0):
     if react_enabled:
         builder.button(
             text=f"{likes} ❤️",
-            callback_data=Reaction(action="like", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
+            callback_data=Reaction(action="like", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
         )
         builder.button(
             text=f"{dislikes} 🤮",
-            callback_data=Reaction(action="dislike", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
+            callback_data=Reaction(action="dislike", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
         )
 
     if answ_enabled:
         builder.button(
             text=f"ответить",
-            callback_data=Reaction(action="answ", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
+            callback_data=Reaction(action="answ", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
         )
 
     if answ_enabled:
         builder.button(
             text=f"кинуть жалобу",
-            callback_data=Reaction(action="report", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled)
+            callback_data=Reaction(action="report", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
         )
 
     builder.adjust(2, 1, 1)
@@ -124,14 +126,14 @@ def use_bottles(tg_id, action):
     return builder.as_markup(resize_keyboard=True)
 
 
-def ban_usr(bottle_id):
+def ban_usr(bottle_id, rep_author_id):
     builder = InlineKeyboardBuilder()
     builder.button(
         text=f"предупреждение",
-        callback_data=BanUsr(action="warn_usr", bottle_id=bottle_id),
+        callback_data=BanUsr(action="warn_usr", bottle_id=bottle_id, rep_author_id=rep_author_id),
     )
     builder.button(
         text=f"пофиг",
-        callback_data=BanUsr(action="not_ban_usr", bottle_id=bottle_id),
+        callback_data=BanUsr(action="not_ban_usr", bottle_id=bottle_id, rep_author_id=rep_author_id),
     )
     return builder.as_markup(resize_keyboard=True)

@@ -1,5 +1,6 @@
 import asyncio
 import random
+from pyexpat.errors import messages
 from random import choice
 from datetime import datetime, timedelta
 
@@ -13,7 +14,7 @@ from keyboards import reply, inline
 from bot import bot
 from other import states
 from other.database import async_session_maker
-from other.models import User, Bottle, Answer, Viewed, ReportMsg, UserSettings
+from other.models import User, Bottle, Answer, Viewed, Report, UserSettings
 from other.button_text import *
 from other import settings
 
@@ -32,11 +33,13 @@ def get_find_stmt(tg_id):
     if random.randint(1, 2) == 1:
         stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
             ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == tg_id)))
-            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id))))
+            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id)))
+            ).where(Bottle.is_active == True)
     else:
         stmt = select(Bottle).order_by(Bottle.rating.desc()
             ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == tg_id)))
-            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id))))
+            ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id)))
+            ).where(Bottle.is_active == True)
 
     return stmt
 
@@ -67,7 +70,7 @@ async def get_rand_bottle(tg_id):
             date = date + timedelta(hours=3)
             str_date = date.strftime("%Y-%m-%d %H:%M")
             await send_bottle_multitype(bottle, tg_id,
-                                        inline.action_bottle(bottle.id, True, True, bottle.likes, bottle.dislikes),
+                                        inline.action_bottle(bottle.id, True, True, message.from_user.id, bottle.likes, bottle.dislikes),
                                         f"<b>Твое послание</b>:\n<i>{str_date} МСК</i>\n\n")
 
 
@@ -147,7 +150,7 @@ async def get_bottle(message: Message):
             date = date + timedelta(hours=3)
             str_date = date.strftime("%Y-%m-%d %H:%M")
             await send_bottle_multitype(bottle, message.from_user.id,
-                                        inline.action_bottle(bottle.id, True, True, bottle.likes, bottle.dislikes),
+                                        inline.action_bottle(bottle.id, True, True, message.from_user.id, bottle.likes, bottle.dislikes),
                                         f"<b>Твое послание</b>:\n<i>{str_date} МСК</i>\n\n")
         else:
             await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
@@ -191,7 +194,7 @@ async def tap_like(call: CallbackQuery, callback_data: inline.Reaction):
 
     await increment_user_value(bottle_author, likes=User.likes + 1)
     await increment_user_value(bottle_author, likes_amount=User.likes_amount + 1)
-    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled))
+    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled, callback_data.tg_id, ))
     await call.message.answer("❤️", reply_markup=reply.main)
 
     # if send_notif:
@@ -205,7 +208,7 @@ async def tap_dislike(call: CallbackQuery, callback_data: inline.Reaction):
         await session.execute(stmt)
         await session.commit()
 
-    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled))
+    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled, callback_data.tg_id, ))
     await call.message.answer("🤮", reply_markup=reply.main)
 
 
@@ -216,7 +219,7 @@ async def tap_answ(call: CallbackQuery, callback_data: inline.Reaction, state: F
         bottle = (await session.execute(stmt)).first()[0]
     await state.set_state(states.SendAnswer.answ)
     await state.update_data(answ=callback_data)
-    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, callback_data.react_enabled, False, bottle.likes, bottle.dislikes))
+    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, callback_data.react_enabled, False, callback_data.tg_id, bottle.likes, bottle.dislikes))
     await call.message.answer("Напиши свой ответ на послание:", reply_markup=reply.main)
 
 
@@ -249,20 +252,11 @@ async def report_bottle(call: CallbackQuery, callback_data: inline.Reaction, sta
     async with async_session_maker() as session:
         stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
         bottle = (await session.execute(stmt)).first()[0]
-        messages = {}
-        for i in range(len(settings.MODERATORS)):
-            msg = (await send_bottle_multitype(bottle, settings.MODERATORS[i], inline.ban_usr(bottle.id), "<b>⚠️Поступила новая жалоба⚠️\nсодержание бутылочки</b>:\n"))
-            # msg = (await bot.send_message(chat_id=settings.MODERATORS[i],
-            #                        text=f"<b>⚠️Поступила новая жалоба⚠️\n"
-            #                         f"содержание бутылочки</b>:\n"
-            #                         f"<blockquote>{call.message.text}</blockquote>",
-            #                        reply_markup=inline.ban_usr(callback_data.bottle_id)))
-            messages[msg.message_id] = msg.chat.id
-
-        for msg_id, chat_id in messages.items():
-            stmt = insert(ReportMsg).values(msg_id=msg_id, chat_id=chat_id, report_id=callback_data.bottle_id)
-            await session.execute(stmt)
+        stmt = insert(Report).values(bottle=bottle.id, report_author=callback_data.tg_id)
+        await session.execute(stmt)
         await session.commit()
+        for i in range(len(settings.MODERATORS)):
+            msg = (await send_bottle_multitype(bottle, settings.MODERATORS[i], inline.ban_usr(bottle.id, callback_data.tg_id), "<b>⚠️Поступила новая жалоба⚠️\nсодержание бутылочки</b>:\n"))
 
     await call.message.delete_reply_markup()
     await call.message.answer("Жалоба была направлена модераторам ⚠️", reply_markup=reply.main)
@@ -271,28 +265,39 @@ async def report_bottle(call: CallbackQuery, callback_data: inline.Reaction, sta
 @router.callback_query(inline.BanUsr.filter(F.action == "warn_usr"))
 async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
     async with async_session_maker() as session:
-        stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
-        bottle = (await session.execute(stmt)).first()[0]
-        usr = bottle.author
-        stmt = delete(Bottle).where(Bottle.id == callback_data.bottle_id)
-        await session.execute(stmt)
-        await session.commit()
+        stmt = select(Report).where(Report.report_author == callback_data.rep_author_id).where(Report.bottle == callback_data.bottle_id)
+        res = (await session.execute(stmt)).first()[0]
+        if not res.is_closed:
+            stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
+            bottle = (await session.execute(stmt)).first()[0]
+            usr = bottle.author
+            stmt = update(Bottle).where(Bottle.id == callback_data.bottle_id).values(is_active=False)
+            await session.execute(stmt)
 
-        await increment_user_value(usr, warns=User.warns+1)
+            await increment_user_value(usr, warns=User.warns+1)
 
-        # await bot.send_message(chat_id=usr, text=f"<b>Вы получили предупреждение за данную бутылочку</b>:<blockquote>{bottle.text}</blockquote>")
-        await send_bottle_multitype(bottle, usr, None, "<b>Вы получили предупреждение за данную бутылочку</b>:\n")
+            await send_bottle_multitype(bottle, usr, None, "<b>Вы получили предупреждение за данную бутылочку</b>:\n")
 
-        stmt = select(ReportMsg).where(ReportMsg.report_id == callback_data.bottle_id)
-        res = (await session.execute(stmt)).all()
-        for el in res:
-            await bot.send_message(chat_id=el[0].chat_id, text=f"Пользователь {usr} получил предупреждение")
-            await bot.delete_message(chat_id=el[0].chat_id, message_id=el[0].msg_id)
-        stmt = delete(ReportMsg).where(ReportMsg.report_id == callback_data.bottle_id)
+            await call.message.answer(text=f"Пользователь {usr} получил предупреждение")
+
+            stmt = update(Report).where(Report.id == res.id).values(is_closed=True)
+            await session.execute(stmt)
+            await session.commit()
+        else:
+            await call.message.answer(text=f"Другой модератор уже обработал жалобу")
+
+    await call.message.delete()
+
 
 
 @router.callback_query(inline.BanUsr.filter(F.action == "not_ban_usr"))
 async def ban_usr_callback(call: CallbackQuery, callback_data: inline.BanUsr):
+    async with async_session_maker() as session:
+        stmt = select(Report).where(Report.report_author == callback_data.rep_author_id).where(Report.bottle == callback_data.bottle_id)
+        res = (await session.execute(stmt)).first()[0]
+        stmt = update(Report).where(Report.id == res.id).values(is_closed=True)
+        await session.execute(stmt)
+        await session.commit()
     await call.message.delete()
 
 #--------------------------------------------------------------------------------------------------------------
