@@ -188,8 +188,6 @@ async def tap_like(call: CallbackQuery, callback_data: inline.Reaction):
         bottle_author = (await session.execute(stmt)).first()[0]
         stmt = update(Bottle).where(Bottle.id == callback_data.bottle_id).values(rating=Bottle.rating+10, likes=Bottle.likes+1)
         await session.execute(stmt)
-        stmt = select(UserSettings.p_like_notif).where(UserSettings.usr == bottle_author)
-        # send_notif = (await session.execute(stmt)).first()[0]
         await session.commit()
 
     await increment_user_value(bottle_author, likes=User.likes + 1)
