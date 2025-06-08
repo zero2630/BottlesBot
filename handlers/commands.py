@@ -26,7 +26,8 @@ router = Router()
 async def command_start(message: Message, command: Command):
     text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
             "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
-            "Все послания <b>анонимны</b>")
+            "Все послания <b>анонимны</b>\n"
+            "Напиши /rules чтобы узнать правила")
 
     async with async_session_maker() as session:
         stmt = select(User).where(User.tg_id == message.from_user.id)
@@ -49,12 +50,12 @@ async def command_start(message: Message, command: Command):
 async def command_start(message: Message, command: Command):
     text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
             "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
-            "Все послания <b>анонимны</b>")
+            "Все послания <b>анонимны</b>\n"
+            "Напиши /rules чтобы узнать правила")
 
     async with async_session_maker() as session:
         stmt = select(User).where(User.tg_id == message.from_user.id)
         res = (await session.execute(stmt)).first()
-        print(res)
         if not res:
             stmt = insert(User).values(tg_id=message.from_user.id)
             await session.execute(stmt)
@@ -165,3 +166,15 @@ async def check_online(message: Message):
     banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
     val = await banned_storage.redis.get(name="online")
     await message.answer(f"<b>Текущий онлайн</b>: {int(val)} человек")
+
+
+@router.message(Command("rules"))
+async def check_online(message: Message):
+    await message.answer("<b>Общие правила</b>:\n"
+                         "1. Порнография в открытом виде запрещена.\n"
+                         "2. Никакой расчлененки.\n"
+                         "3. Маты допускаются в умеренном количестве.\n"
+                         "4. Не писать оскорбления в чей-либо адрес.\n"
+                         "5. Никакой рекламы, это не рекламная биржа.\n"
+                         "6. Обсуждение политики под БОЛЬШИМ вопросом. Лучше не стоит.\n"
+                         "За нарушения будете получать предупреждения. За 1, 2, 5 пункты можно сразу отлететь в бан")
