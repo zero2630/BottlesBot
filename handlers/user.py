@@ -235,16 +235,45 @@ async def send_answer_success(message: Message, state: FSMContext):
         await session.execute(stmt)
         await session.commit()
 
+        stmt = select(Answer.id).where(Answer.author == message.from_user.id).where(Answer.bottle == bottle.id)
+        answ_id = (await session.execute(stmt)).first()[0]
+        await session.commit()
+
     await increment_user_value(bottle.author, receive_amount=User.receive_amount + 1)
     await state.clear()
     await message.answer("Ваш ответ был отправлен автору ✅", reply_markup=reply.main)
-    await bot.send_message(text=f"<b>Тебе пришел ответ!</b>\n"
-                           f"на бутылочку\n",
-                           chat_id=bottle.author)
-    await send_bottle_multitype(bottle, bottle.author, None, "")
+    # await bot.send_message(text=f"<b>Тебе пришел ответ!</b>\n"
+    #                        f"на бутылочку\n",
+    #                        chat_id=bottle.author)
+    # await send_bottle_multitype(bottle, bottle.author, inline.watch_answ_bottle(bottle.id), "")
 
-    await bot.send_message(text=f"<b>Тебе ответили:</b>\n"
-                           f"{message.text}", chat_id=bottle.author)
+    await bot.send_message(text=f"<b>На твою бутылочку ответили:</b>\n"
+                           f"{message.text}", chat_id=bottle.author,
+                           reply_markup=inline.watch_answ_bottle(bottle.id, answ_id, bottle.author, True))
+
+
+@router.callback_query(inline.WatchBottle.filter(F.is_answ == False))
+async def watch_bottle(call: CallbackQuery, callback_data: inline.WatchBottle, state: FSMContext):
+    async with async_session_maker() as session:
+        stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
+        bottle = (await session.execute(stmt)).first()[0]
+        await send_bottle_multitype(bottle, callback_data.tg_id,
+                                    inline.watch_answ_bottle(bottle.id, callback_data.answ_id, callback_data.tg_id, False), "")
+
+        await call.message.delete()
+
+
+@router.callback_query(inline.WatchBottle.filter(F.is_answ == True))
+async def watch_bottle(call: CallbackQuery, callback_data: inline.WatchBottle, state: FSMContext):
+    async with async_session_maker() as session:
+        stmt = select(Answer).where(Answer.id == callback_data.answ_id)
+        answ = (await session.execute(stmt)).first()[0]
+        await call.message.answer(text=f"<b>На твою бутылочку ответили:</b>\n{answ.text}",
+                                  reply_markup=inline.watch_answ_bottle(callback_data.bottle_id, callback_data.answ_id, callback_data.tg_id, True))
+
+        await call.message.delete()
+
+
 
 
 @router.callback_query(inline.Reaction.filter(F.action == "report"))

@@ -40,6 +40,13 @@ class Settings(CallbackData, prefix="settings"):
     par2: bool
 
 
+class WatchBottle(CallbackData, prefix="watch_bottle"):
+    is_answ: bool
+    tg_id: int
+    bottle_id: int
+    answ_id: int
+
+
 def action_bottle(bottle_id, react_enabled, answ_enabled, tg_id, likes=0, dislikes=0):
     if not react_enabled and not answ_enabled:
         return None
@@ -137,3 +144,20 @@ def ban_usr(bottle_id, rep_author_id):
         callback_data=BanUsr(action="not_ban_usr", bottle_id=bottle_id, rep_author_id=rep_author_id),
     )
     return builder.as_markup(resize_keyboard=True)
+
+
+def watch_answ_bottle(bottle_id, answ_id, tg_id, is_answ):
+    builder = InlineKeyboardBuilder()
+    if is_answ:
+        text = "посмотреть свою бутылочку"
+    else:
+        text = "посмотреть ответ"
+
+    builder.button(
+        text=text,
+        callback_data=WatchBottle(bottle_id=bottle_id, answ_id=answ_id, tg_id=tg_id, is_answ=(not is_answ)),
+    )
+
+    return builder.as_markup(resize_keyboard=True)
+
+
