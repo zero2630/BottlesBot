@@ -36,8 +36,7 @@ class AnswAdmin(CallbackData, prefix="ban_usr"):
 class Settings(CallbackData, prefix="settings"):
     action: str
     tg_id: int
-    par1: bool
-    par2: bool
+    par1: str
 
 
 class WatchBottle(CallbackData, prefix="watch_bottle"):
@@ -105,22 +104,18 @@ def buy_bottles(tg_id):
     return builder.as_markup(resize_keyboard=True)
 
 
-def settings(tg_id, par1, par2):
-    vals = {
-        True: "✅",
-        False: "❌"
+def settings(tg_id, par1):
+    vals_type = {
+        "new": "1️⃣",
+        "old": "2️⃣"
     }
 
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=f"{vals[par1]} | присылать уведомления о ❤️",
-        callback_data=Settings(action="like_notif", tg_id=tg_id, par1=par1, par2=par2),
+        text=f"{vals_type[par1]} | формат отображения ответа",
+        callback_data=Settings(action="answ_format", tg_id=tg_id, par1=par1),
     )
-    builder.button(
-        text=f"{vals[par2]} | присылать случайную бутылочку раз в день",
-        callback_data=Settings(action="send_rand", tg_id=tg_id, par1=par1, par2=par2),
-    )
-    builder.adjust(1, 1)
+    builder.adjust(1)
     return builder.as_markup(resize_keyboard=True)
 
 

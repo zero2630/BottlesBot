@@ -29,20 +29,14 @@ class User(Base):
     bottles: Mapped[int] = mapped_column(default=0)
     warns: Mapped[int] = mapped_column(default=0, server_default='0')
     is_banned: Mapped[bool] = mapped_column(default=False, server_default='False')
+    p_watch_answ_type: Mapped[str] = mapped_column(String(10), server_default="new")
+    p_send_rand: Mapped[bool] = mapped_column(String(10), server_default="true")
+    p_send_like: Mapped[bool] = mapped_column(String(10), server_default="true")
+    p_bottle_exists: Mapped[int] = mapped_column(server_default="7")
+    p_bad_mode: Mapped[bool] = mapped_column(server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     bottle_relation = relationship("Bottle", back_populates="user_relation", cascade="all, delete, delete-orphan")
-    settings_relation = relationship("UserSettings", back_populates="user_relation", cascade="all, delete, delete-orphan")
-
-
-class UserSettings(Base):
-    __tablename__ = "usr_settings"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    usr: Mapped[int] = mapped_column(ForeignKey("bot_user.tg_id", ondelete="CASCADE"))
-    p_like_notif: Mapped[bool] = mapped_column(server_default="true")
-    p_send_rand: Mapped[bool] = mapped_column(server_default="true")
-
-    user_relation = relationship("User", back_populates="settings_relation")
 
 
 class Bottle(Base):

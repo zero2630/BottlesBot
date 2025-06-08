@@ -9,7 +9,7 @@ from bot import bot, dp
 from middleware.spam_middleware import SpamMiddleware
 from middleware.ban_middleware import BanMiddleware
 from other.database import async_session_maker
-from other.models import User, UserSettings, OnlineInfo
+from other.models import User, OnlineInfo
 
 
 async def update_lim():

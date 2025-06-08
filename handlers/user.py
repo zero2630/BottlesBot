@@ -14,7 +14,7 @@ from keyboards import reply, inline
 from bot import bot
 from other import states
 from other.database import async_session_maker
-from other.models import User, Bottle, Answer, Viewed, Report, UserSettings
+from other.models import User, Bottle, Answer, Viewed, Report
 from other.button_text import *
 from other import settings
 
@@ -233,6 +233,8 @@ async def send_answer_success(message: Message, state: FSMContext):
         await session.execute(stmt)
         stmt = insert(Answer).values(text=message.text, author=message.from_user.id, bottle=bottle.id)
         await session.execute(stmt)
+        stmt = select(User.p_watch_answ_type).where(User.tg_id == bottle.author)
+        watch_type = (await session.execute(stmt)).first()[0]
         await session.commit()
 
         stmt = select(Answer.id).where(Answer.author == message.from_user.id).where(Answer.bottle == bottle.id)
@@ -242,14 +244,18 @@ async def send_answer_success(message: Message, state: FSMContext):
     await increment_user_value(bottle.author, receive_amount=User.receive_amount + 1)
     await state.clear()
     await message.answer("Ваш ответ был отправлен автору ✅", reply_markup=reply.main)
-    # await bot.send_message(text=f"<b>Тебе пришел ответ!</b>\n"
-    #                        f"на бутылочку\n",
-    #                        chat_id=bottle.author)
-    # await send_bottle_multitype(bottle, bottle.author, inline.watch_answ_bottle(bottle.id), "")
 
-    await bot.send_message(text=f"<b>На твою бутылочку ответили:</b>\n"
-                           f"{message.text}", chat_id=bottle.author,
-                           reply_markup=inline.watch_answ_bottle(bottle.id, answ_id, bottle.author, True))
+    if watch_type == "new":
+        await bot.send_message(text=f"<b>На твою бутылочку ответили:</b>\n"
+                                    f"{message.text}", chat_id=bottle.author,
+                               reply_markup=inline.watch_answ_bottle(bottle.id, answ_id, bottle.author, True))
+    else:
+        await bot.send_message(text=f"<b>Тебе пришел ответ!</b>\n"
+                               f"на бутылочку\n",
+                               chat_id=bottle.author)
+        await send_bottle_multitype(bottle, bottle.author, None, "")
+        await bot.send_message(text=f"<b>Тебе ответили:</b>\n"
+                               f"{message.text}", chat_id=bottle.author)
 
 
 @router.callback_query(inline.WatchBottle.filter(F.is_answ == False))
@@ -352,32 +358,47 @@ async def bottle_history(message: Message, state: FSMContext):
 @router.message(F.text.casefold() == main_but4)
 async def buy_menu(message: Message, state: FSMContext):
     async with async_session_maker() as session:
-        stmt = select(UserSettings).where(UserSettings.usr == message.from_user.id)
-        settings = (await session.execute(stmt)).first()[0]
+        stmt = select(User).where(User.tg_id == message.from_user.id)
+        usr = (await session.execute(stmt)).first()[0]
         await session.commit()
 
-    await message.answer("<i>пока в разработке</i>")
-    # await message.answer(f"<b>Твои настройки:</b>",
-    #                      reply_markup=inline.settings(message.from_user.id, settings.p_like_notif, settings.p_send_rand))
+    await message.answer(f"<b>Твои настройки:</b>",
+                         reply_markup=inline.settings(message.from_user.id, usr.p_watch_answ_type))
 
 
-@router.callback_query(inline.Settings.filter(F.action == "send_rand"))
-async def send_rand_callback(call: CallbackQuery, callback_data: inline.Settings):
+@router.callback_query(inline.Settings.filter(F.action == "answ_format"))
+async def answ_format_callback(call: CallbackQuery, callback_data: inline.Settings):
+    if callback_data.par1 == "new":
+        new_par = "old"
+    else:
+        new_par = "new"
+
     async with async_session_maker() as session:
-        stmt = update(UserSettings).where(UserSettings.usr == callback_data.tg_id).values(p_send_rand=(not callback_data.par2))
+        stmt = update(User).where(User.tg_id == callback_data.tg_id).values(p_watch_answ_type=new_par)
         await session.execute(stmt)
         await session.commit()
 
-        await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, callback_data.par1, (not callback_data.par2)))
+        await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, new_par))
 
 
-@router.callback_query(inline.Settings.filter(F.action == "like_notif"))
-async def like_notif_callback(call: CallbackQuery, callback_data: inline.Settings):
-    async with async_session_maker() as session:
-        stmt = update(UserSettings).where(UserSettings.usr == callback_data.tg_id).values(p_like_notif=(not callback_data.par1))
-        await session.execute(stmt)
-        await session.commit()
 
-        await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, (not callback_data.par1), callback_data.par2))
+# @router.callback_query(inline.Settings.filter(F.action == "send_rand"))
+# async def send_rand_callback(call: CallbackQuery, callback_data: inline.Settings):
+#     async with async_session_maker() as session:
+#         stmt = update(UserSettings).where(UserSettings.usr == callback_data.tg_id).values(p_send_rand=(not callback_data.par2))
+#         await session.execute(stmt)
+#         await session.commit()
+#
+#         await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, callback_data.par1, (not callback_data.par2)))
+
+
+# @router.callback_query(inline.Settings.filter(F.action == "like_notif"))
+# async def like_notif_callback(call: CallbackQuery, callback_data: inline.Settings):
+#     async with async_session_maker() as session:
+#         stmt = update(UserSettings).where(UserSettings.usr == callback_data.tg_id).values(p_like_notif=(not callback_data.par1))
+#         await session.execute(stmt)
+#         await session.commit()
+#
+#         await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, (not callback_data.par1), callback_data.par2))
 
 #--------------------------------------------------------------------------------------------------------------

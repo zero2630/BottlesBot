@@ -13,7 +13,7 @@ from sqlalchemy import insert, select, delete, update
 from keyboards import reply
 from other import states
 from other import settings
-from other.models import User, RefLink, UserSettings
+from other.models import User, RefLink
 from other.database import async_session_maker
 from keyboards import inline
 from bot import bot
