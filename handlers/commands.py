@@ -122,8 +122,7 @@ async def send_answer_admin_success(message: Message, state: FSMContext):
 
     await message.answer("Ответ был направлен админу")
 
-    for usr in settings.ADMINS:
-        await bot.send_message(chat_id=usr, text=f"Вам написал пользователь:\n<blockquote>{message.text}</blockquote>")
+    await bot.send_message(chat_id=settings.ADMINS[0], text=f"Вам написал пользователь:\n<blockquote>{message.text}</blockquote>")
 
 
 @router.message(Command("ban"))
