@@ -9,6 +9,7 @@ class Reaction(CallbackData, prefix="reaction"):
     bottle_id: int
     react_enabled: bool
     answ_enabled: bool
+    rep_enabled: bool
     tg_id: int
 
 
@@ -37,6 +38,7 @@ class Settings(CallbackData, prefix="settings"):
     action: str
     tg_id: int
     par1: str
+    par2: bool
 
 
 class WatchBottle(CallbackData, prefix="watch_bottle"):
@@ -46,7 +48,7 @@ class WatchBottle(CallbackData, prefix="watch_bottle"):
     answ_id: int
 
 
-def action_bottle(bottle_id, react_enabled, answ_enabled, tg_id, likes=0, dislikes=0):
+def action_bottle(bottle_id, react_enabled, answ_enabled, rep_enabled, tg_id, likes=0, dislikes=0):
     if not react_enabled and not answ_enabled:
         return None
 
@@ -54,23 +56,23 @@ def action_bottle(bottle_id, react_enabled, answ_enabled, tg_id, likes=0, dislik
     if react_enabled:
         builder.button(
             text=f"{likes} ❤️",
-            callback_data=Reaction(action="like", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
+            callback_data=Reaction(action="like", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
         )
         builder.button(
             text=f"{dislikes} 🤮",
-            callback_data=Reaction(action="dislike", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
+            callback_data=Reaction(action="dislike", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
         )
 
     if answ_enabled:
         builder.button(
             text=f"ответить",
-            callback_data=Reaction(action="answ", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
+            callback_data=Reaction(action="answ", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
         )
 
-    if answ_enabled:
+    if rep_enabled:
         builder.button(
             text=f"кинуть жалобу",
-            callback_data=Reaction(action="report", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, tg_id=tg_id)
+            callback_data=Reaction(action="report", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
         )
 
     builder.adjust(2, 1, 1)
@@ -104,16 +106,24 @@ def buy_bottles(tg_id):
     return builder.as_markup(resize_keyboard=True)
 
 
-def settings(tg_id, par1):
+def settings(tg_id, par1, par2):
     vals_type = {
         "new": "1️⃣",
         "old": "2️⃣"
+    }
+    vals_mode = {
+        True: "😈",
+        False: "😇"
     }
 
     builder = InlineKeyboardBuilder()
     builder.button(
         text=f"{vals_type[par1]} | формат отображения ответа",
-        callback_data=Settings(action="answ_format", tg_id=tg_id, par1=par1),
+        callback_data=Settings(action="answ_format", tg_id=tg_id, par1=par1, par2=par2),
+    )
+    builder.button(
+        text=f"{vals_mode[par2]} | режим бота",
+        callback_data=Settings(action="bot_mode", tg_id=tg_id, par1=par1, par2=par2),
     )
     builder.adjust(1)
     return builder.as_markup(resize_keyboard=True)

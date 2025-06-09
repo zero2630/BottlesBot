@@ -29,17 +29,17 @@ async def increment_user_value(tg_id, **kwargs):
         await session.commit()
 
 
-def get_find_stmt(tg_id):
+def get_find_stmt(tg_id, mode):
     if random.randint(1, 2) == 1:
         stmt = select(Bottle).order_by(Bottle.views).order_by(Bottle.rating.desc()
             ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == tg_id)))
             ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id)))
-            ).where(Bottle.is_active == True)
+            ).where(Bottle.is_active == True).where(Bottle.bad == mode)
     else:
         stmt = select(Bottle).order_by(Bottle.rating.desc()
             ).where(not_(Bottle.id.in_(select(Viewed.bottle).where(Viewed.person == tg_id)))
             ).where(not_(Bottle.id.in_(select(Bottle.id).where(Bottle.author == tg_id)))
-            ).where(Bottle.is_active == True)
+            ).where(Bottle.is_active == True).where(Bottle.bad == mode)
 
     return stmt
 
@@ -55,7 +55,9 @@ async def send_bottle_multitype(bottle, tg_id, markup, add_text):
 
 async def get_rand_bottle(tg_id):
     async with async_session_maker() as session:
-        stmt = get_find_stmt(tg_id)
+        stmt = select(User.p_bad_mode).where(User.tg_id == tg_id)
+        mode = (await session.execute(stmt)).first()[0]
+        stmt = get_find_stmt(tg_id, mode)
         res = (await session.execute(stmt)).first()
         if res:
             bottle = res[0]
@@ -70,7 +72,7 @@ async def get_rand_bottle(tg_id):
             date = date + timedelta(hours=3)
             str_date = date.strftime("%Y-%m-%d %H:%M")
             await send_bottle_multitype(bottle, tg_id,
-                                        inline.action_bottle(bottle.id, True, True, message.from_user.id, bottle.likes, bottle.dislikes),
+                                        inline.action_bottle(bottle.id, True, True, (not mode), tg_id, bottle.likes, bottle.dislikes),
                                         f"<b>Твое послание</b>:\n<i>{str_date} МСК</i>\n\n")
 
 
@@ -105,7 +107,9 @@ async def send_bottle(message: Message, state: FSMContext):
 @router.message(states.SendBottle.bottle_text, F.text)
 async def send_bottle_success(message: Message, state: FSMContext):
     async with async_session_maker() as session:
-        stmt = insert(Bottle).values(text=message.text, author=message.from_user.id, type="text")
+        stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
+        mode = (await session.execute(stmt)).first()[0]
+        stmt = insert(Bottle).values(text=message.text, author=message.from_user.id, type="text", bad=mode)
         await session.execute(stmt)
         await session.commit()
         await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
@@ -121,7 +125,9 @@ async def send_bottle_success(message: Message, state: FSMContext):
         photo_caption = ""
         if message.caption:
             photo_caption = message.caption
-        stmt = insert(Bottle).values(text=photo_caption, author=message.from_user.id, type="img", file_id=message.photo[-1].file_id)
+        stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
+        mode = (await session.execute(stmt)).first()[0]
+        stmt = insert(Bottle).values(text=photo_caption, author=message.from_user.id, type="img", file_id=message.photo[-1].file_id, bad=mode)
         await session.execute(stmt)
         await session.commit()
         await increment_user_value(message.from_user.id, send_amount=User.send_amount+1, send_lim=User.send_lim-1)
@@ -135,7 +141,9 @@ async def send_bottle_success(message: Message, state: FSMContext):
 @router.message(F.text.casefold() == main_but2)
 async def get_bottle(message: Message):
     async with async_session_maker() as session:
-        stmt = get_find_stmt(message.from_user.id)
+        stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
+        mode = (await session.execute(stmt)).first()[0]
+        stmt = get_find_stmt(message.from_user.id, mode)
         res = (await session.execute(stmt)).first()
         if res:
             bottle = res[0]
@@ -150,7 +158,7 @@ async def get_bottle(message: Message):
             date = date + timedelta(hours=3)
             str_date = date.strftime("%Y-%m-%d %H:%M")
             await send_bottle_multitype(bottle, message.from_user.id,
-                                        inline.action_bottle(bottle.id, True, True, message.from_user.id, bottle.likes, bottle.dislikes),
+                                        inline.action_bottle(bottle.id, True, True, (not mode), message.from_user.id, bottle.likes, bottle.dislikes),
                                         f"<b>Твое послание</b>:\n<i>{str_date} МСК</i>\n\n")
         else:
             await message.answer(f"<b>Новых посланий нет</b> 😭", reply_markup=reply.main)
@@ -192,7 +200,7 @@ async def tap_like(call: CallbackQuery, callback_data: inline.Reaction):
 
     await increment_user_value(bottle_author, likes=User.likes + 1)
     await increment_user_value(bottle_author, likes_amount=User.likes_amount + 1)
-    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled, callback_data.tg_id, ))
+    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled, callback_data.rep_enabled, callback_data.tg_id, ))
     await call.message.answer("❤️", reply_markup=reply.main)
 
     # if send_notif:
@@ -206,7 +214,7 @@ async def tap_dislike(call: CallbackQuery, callback_data: inline.Reaction):
         await session.execute(stmt)
         await session.commit()
 
-    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled, callback_data.tg_id, ))
+    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, False, callback_data.answ_enabled, callback_data.rep_enabled, callback_data.tg_id, ))
     await call.message.answer("🤮", reply_markup=reply.main)
 
 
@@ -217,7 +225,7 @@ async def tap_answ(call: CallbackQuery, callback_data: inline.Reaction, state: F
         bottle = (await session.execute(stmt)).first()[0]
     await state.set_state(states.SendAnswer.answ)
     await state.update_data(answ=callback_data)
-    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, callback_data.react_enabled, False, callback_data.tg_id, bottle.likes, bottle.dislikes))
+    await call.message.edit_reply_markup(reply_markup=inline.action_bottle(callback_data.bottle_id, callback_data.react_enabled, False, callback_data.rep_enabled, callback_data.tg_id, bottle.likes, bottle.dislikes))
     await call.message.answer("Напиши свой ответ на послание:", reply_markup=reply.main)
 
 
@@ -361,7 +369,7 @@ async def buy_menu(message: Message, state: FSMContext):
         await session.commit()
 
     await message.answer(f"<b>Твои настройки:</b>",
-                         reply_markup=inline.settings(message.from_user.id, usr.p_watch_answ_type))
+                         reply_markup=inline.settings(message.from_user.id, usr.p_watch_answ_type, usr.p_bad_mode))
 
 
 @router.callback_query(inline.Settings.filter(F.action == "answ_format"))
@@ -376,7 +384,24 @@ async def answ_format_callback(call: CallbackQuery, callback_data: inline.Settin
         await session.execute(stmt)
         await session.commit()
 
-        await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, new_par))
+        await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, new_par, callback_data.par2))
+
+
+@router.callback_query(inline.Settings.filter(F.action == "bot_mode"))
+async def bot_mode_callback(call: CallbackQuery, callback_data: inline.Settings):
+    new_par2 = not callback_data.par2
+    if new_par2:
+        await call.message.answer("<b>Внимание</b>\n"
+                                  "Был выбран щитпост режим бота\n"
+                                  "В этом режиме почти полностью <b>отсутствует модерация</b>")
+
+    async with async_session_maker() as session:
+        stmt = update(User).where(User.tg_id == callback_data.tg_id).values(p_bad_mode=new_par2)
+        await session.execute(stmt)
+        await session.commit()
+
+        await call.message.edit_reply_markup(reply_markup=inline.settings(callback_data.tg_id, callback_data.par1, new_par2))
+
 
 
 

@@ -51,6 +51,7 @@ class Bottle(Base):
     dislikes: Mapped[int] = mapped_column(server_default="0")
     rating: Mapped[int] = mapped_column(default=0)
     is_active: Mapped[bool] = mapped_column(server_default="true")
+    bad: Mapped[bool] = mapped_column(server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user_relation = relationship("User", back_populates="bottle_relation")
