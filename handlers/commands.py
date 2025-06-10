@@ -21,13 +21,15 @@ from bot import bot
 
 router = Router()
 
+start_text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
+            "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
+            "<b>Можно отправлять текст, gif, фото и кружочки</b>\n"
+            "Все послания <b>анонимны</b>\n"
+            "Напиши /rules чтобы узнать правила")
+
 
 @router.message(CommandStart(deep_link=True))
 async def command_start(message: Message, command: Command):
-    text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
-            "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
-            "Все послания <b>анонимны</b>\n"
-            "Напиши /rules чтобы узнать правила")
 
     async with async_session_maker() as session:
         stmt = select(User).where(User.tg_id == message.from_user.id)
@@ -43,15 +45,11 @@ async def command_start(message: Message, command: Command):
             await session.execute(stmt)
         await session.commit()
 
-    await message.answer(text, reply_markup=reply.main)
+    await message.answer(start_text, reply_markup=reply.main)
 
 
 @router.message(CommandStart())
 async def command_start(message: Message, command: Command):
-    text = ("<b>Отправляй</b> послания в бутылке и вылавливай чужие\n"
-            "<b>Пиши</b> ответы на найденные послания и читай ответы к своим\n"
-            "Все послания <b>анонимны</b>\n"
-            "Напиши /rules чтобы узнать правила")
 
     async with async_session_maker() as session:
         stmt = select(User).where(User.tg_id == message.from_user.id)
@@ -64,7 +62,7 @@ async def command_start(message: Message, command: Command):
             await session.execute(stmt)
         await session.commit()
 
-    await message.answer(text, reply_markup=reply.main)
+    await message.answer(start_text, reply_markup=reply.main)
 
 
 @router.message(Command("deluser"))
