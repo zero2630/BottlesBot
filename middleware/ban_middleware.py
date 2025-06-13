@@ -1,23 +1,23 @@
 from typing import Callable, Any, Dict, Awaitable
-import asyncio
-import datetime
+import asyncio  # noqa: F401
 
-from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Message
 from sqlalchemy import select, insert
 
 from other.database import async_session_maker
 from other.models import User
 
-class BanMiddleware():
+
+class BanMiddleware:
     def __init__(self, storage):
         self.storage = storage
 
-    async def __call__(self,
-                 handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
-                 event: Message,
-                 data: Dict[str, Any]
-                 ):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: Message,
+        data: Dict[str, Any],
+    ):
         user = event.from_user.id
         check_user = await self.storage.redis.get(name=user)
 

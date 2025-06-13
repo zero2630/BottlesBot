@@ -1,7 +1,5 @@
-from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
-
-from other.models import Bottle
 
 
 class Reaction(CallbackData, prefix="reaction"):
@@ -48,7 +46,9 @@ class WatchBottle(CallbackData, prefix="watch_bottle"):
     answ_id: int
 
 
-def action_bottle(bottle_id, react_enabled, answ_enabled, rep_enabled, tg_id, likes=0, dislikes=0):
+def action_bottle(
+    bottle_id, react_enabled, answ_enabled, rep_enabled, tg_id, likes=0, dislikes=0
+):
     if not react_enabled and not answ_enabled:
         return None
 
@@ -56,23 +56,51 @@ def action_bottle(bottle_id, react_enabled, answ_enabled, rep_enabled, tg_id, li
     if react_enabled:
         builder.button(
             text=f"{likes} ❤️",
-            callback_data=Reaction(action="like", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
+            callback_data=Reaction(
+                action="like",
+                bottle_id=bottle_id,
+                react_enabled=react_enabled,
+                answ_enabled=answ_enabled,
+                rep_enabled=rep_enabled,
+                tg_id=tg_id,
+            ),
         )
         builder.button(
             text=f"{dislikes} 🤮",
-            callback_data=Reaction(action="dislike", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
+            callback_data=Reaction(
+                action="dislike",
+                bottle_id=bottle_id,
+                react_enabled=react_enabled,
+                answ_enabled=answ_enabled,
+                rep_enabled=rep_enabled,
+                tg_id=tg_id,
+            ),
         )
 
     if answ_enabled:
         builder.button(
-            text=f"ответить",
-            callback_data=Reaction(action="answ", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
+            text="ответить",
+            callback_data=Reaction(
+                action="answ",
+                bottle_id=bottle_id,
+                react_enabled=react_enabled,
+                answ_enabled=answ_enabled,
+                rep_enabled=rep_enabled,
+                tg_id=tg_id,
+            ),
         )
 
     if rep_enabled:
         builder.button(
-            text=f"кинуть жалобу",
-            callback_data=Reaction(action="report", bottle_id=bottle_id, react_enabled=react_enabled, answ_enabled=answ_enabled, rep_enabled=rep_enabled, tg_id=tg_id)
+            text="кинуть жалобу",
+            callback_data=Reaction(
+                action="report",
+                bottle_id=bottle_id,
+                react_enabled=react_enabled,
+                answ_enabled=answ_enabled,
+                rep_enabled=rep_enabled,
+                tg_id=tg_id,
+            ),
         )
 
     builder.adjust(2, 1, 1)
@@ -82,39 +110,13 @@ def action_bottle(bottle_id, react_enabled, answ_enabled, rep_enabled, tg_id, li
 
 def answ_admin():
     builder = InlineKeyboardBuilder()
-    builder.button(
-        text=f"ответить",
-        callback_data=AnswAdmin(action="answ_admin")
-    )
-    return builder.as_markup(resize_keyboard=True)
-
-
-def buy_bottles(tg_id):
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text=f"1 🍾",
-        callback_data=BuyBottles(action="buy_1", amount=1, tg_id=tg_id),
-    )
-    builder.button(
-        text=f"5 🍾",
-        callback_data=BuyBottles(action="buy_1", amount=5, tg_id=tg_id),
-    )
-    builder.button(
-        text=f"10 🍾",
-        callback_data=BuyBottles(action="buy_1", amount=10, tg_id=tg_id),
-    )
+    builder.button(text="ответить", callback_data=AnswAdmin(action="answ_admin"))
     return builder.as_markup(resize_keyboard=True)
 
 
 def settings(tg_id, par1, par2):
-    vals_type = {
-        "new": "1️⃣",
-        "old": "2️⃣"
-    }
-    vals_mode = {
-        True: "😈",
-        False: "😇"
-    }
+    vals_type = {"new": "1️⃣", "old": "2️⃣"}
+    vals_mode = {True: "😈", False: "😇"}
 
     builder = InlineKeyboardBuilder()
     builder.button(
@@ -132,7 +134,7 @@ def settings(tg_id, par1, par2):
 def use_bottles(tg_id, action):
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=f"Да",
+        text="Да",
         callback_data=UseBottles(action=action, tg_id=tg_id),
     )
     return builder.as_markup(resize_keyboard=True)
@@ -141,12 +143,16 @@ def use_bottles(tg_id, action):
 def ban_usr(bottle_id, rep_author_id):
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=f"предупреждение",
-        callback_data=BanUsr(action="warn_usr", bottle_id=bottle_id, rep_author_id=rep_author_id),
+        text="предупреждение",
+        callback_data=BanUsr(
+            action="warn_usr", bottle_id=bottle_id, rep_author_id=rep_author_id
+        ),
     )
     builder.button(
-        text=f"пофиг",
-        callback_data=BanUsr(action="not_ban_usr", bottle_id=bottle_id, rep_author_id=rep_author_id),
+        text="пофиг",
+        callback_data=BanUsr(
+            action="not_ban_usr", bottle_id=bottle_id, rep_author_id=rep_author_id
+        ),
     )
     return builder.as_markup(resize_keyboard=True)
 
@@ -160,9 +166,9 @@ def watch_answ_bottle(bottle_id, answ_id, tg_id, is_answ):
 
     builder.button(
         text=text,
-        callback_data=WatchBottle(bottle_id=bottle_id, answ_id=answ_id, tg_id=tg_id, is_answ=(not is_answ)),
+        callback_data=WatchBottle(
+            bottle_id=bottle_id, answ_id=answ_id, tg_id=tg_id, is_answ=(not is_answ)
+        ),
     )
 
     return builder.as_markup(resize_keyboard=True)
-
-

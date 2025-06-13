@@ -1,18 +1,18 @@
 from datetime import datetime
-import asyncio
+import asyncio  # noqa: F401
 
 from sqlalchemy import ForeignKey
-from sqlalchemy import MetaData
 from sqlalchemy import func
 from sqlalchemy import String, Text, DateTime, BigInteger
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
-from sqlalchemy.orm import backref
+
 
 class Base(DeclarativeBase):
     pass
+
 
 class User(Base):
     __tablename__ = "bot_user"
@@ -25,10 +25,10 @@ class User(Base):
     receive_amount: Mapped[int] = mapped_column(default=0)
     likes_amount: Mapped[int] = mapped_column(default=0)
     likes: Mapped[int] = mapped_column(default=0)
-    rating_place: Mapped[int] = mapped_column(default=0, server_default='0')
+    rating_place: Mapped[int] = mapped_column(default=0, server_default="0")
     bottles: Mapped[int] = mapped_column(default=0)
-    warns: Mapped[int] = mapped_column(default=0, server_default='0')
-    is_banned: Mapped[bool] = mapped_column(default=False, server_default='False')
+    warns: Mapped[int] = mapped_column(default=0, server_default="0")
+    is_banned: Mapped[bool] = mapped_column(default=False, server_default="False")
     p_watch_answ_type: Mapped[str] = mapped_column(String(10), server_default="new")
     p_send_rand: Mapped[bool] = mapped_column(String(10), server_default="true")
     p_send_like: Mapped[bool] = mapped_column(String(10), server_default="true")
@@ -36,7 +36,9 @@ class User(Base):
     p_bad_mode: Mapped[bool] = mapped_column(server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    bottle_relation = relationship("Bottle", back_populates="user_relation", cascade="all, delete, delete-orphan")
+    bottle_relation = relationship(
+        "Bottle", back_populates="user_relation", cascade="all, delete, delete-orphan"
+    )
 
 
 class Bottle(Base):
@@ -45,7 +47,9 @@ class Bottle(Base):
     text: Mapped[str] = mapped_column(Text)
     type: Mapped[str] = mapped_column(String(10), server_default="text")
     file_id: Mapped[str] = mapped_column(Text, server_default="")
-    author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id", ondelete="CASCADE"))
+    author: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("bot_user.tg_id", ondelete="CASCADE")
+    )
     views: Mapped[int] = mapped_column(default=0)
     likes: Mapped[int] = mapped_column(server_default="0")
     dislikes: Mapped[int] = mapped_column(server_default="0")
@@ -55,10 +59,18 @@ class Bottle(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user_relation = relationship("User", back_populates="bottle_relation")
-    viewed_relation = relationship("Viewed", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
-    liked_relation = relationship("Liked", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
-    answer_relation = relationship("Answer", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
-    report_relation = relationship("Report", back_populates="bottle_relation", cascade="all, delete, delete-orphan")
+    viewed_relation = relationship(
+        "Viewed", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
+    )
+    liked_relation = relationship(
+        "Liked", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
+    )
+    answer_relation = relationship(
+        "Answer", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
+    )
+    report_relation = relationship(
+        "Report", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
+    )
 
 
 class Answer(Base):
