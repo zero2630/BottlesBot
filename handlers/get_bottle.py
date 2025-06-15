@@ -124,7 +124,7 @@ async def tap_answ(
         stmt = select(Bottle).where(Bottle.id == callback_data.bottle_id)
         bottle = (await session.execute(stmt)).first()[0]
     await state.set_state(states.SendAnswer.answ)
-    await state.update_data(answ=callback_data)
+    await state.update_data(answ=callback_data.bottle_id)
     await call.message.edit_reply_markup(
         reply_markup=inline.action_bottle(
             callback_data.bottle_id,
@@ -141,7 +141,7 @@ async def tap_answ(
 
 @router.message(states.SendAnswer.answ, F.text | F.photo | F.animation | F.video_note | F.sticker | F.video)
 async def send_answer_success(message: Message, state: FSMContext):
-    data = (await state.get_data())["answ"]
+    bottle_id = (await state.get_data())["answ"]
     if message.text:
         msg_text = message.text
     elif message.caption:
@@ -150,11 +150,11 @@ async def send_answer_success(message: Message, state: FSMContext):
         msg_text = ""
 
     async with async_session_maker() as session:
-        stmt = select(Bottle).where(Bottle.id == data.bottle_id)
+        stmt = select(Bottle).where(Bottle.id == bottle_id)
         bottle = (await session.execute(stmt)).first()[0]
         stmt = (
             update(Bottle)
-            .where(Bottle.id == data.bottle_id)
+            .where(Bottle.id == bottle_id)
             .values(rating=Bottle.rating + 30)
         )
         await session.execute(stmt)
@@ -191,31 +191,14 @@ async def send_answer_success(message: Message, state: FSMContext):
     await state.clear()
     await message.answer("Ваш ответ был отправлен автору ✅", reply_markup=reply.main)
 
-    if watch_type == "new":
-        await utils.send_bottle_multitype(answ, bottle.author, inline.watch_answ_bottle(
-                bottle.id, answ.id, bottle.author, True
-            ),
-            "<b>На твою бутылочку ответили:</b>\n"
-        )
-        # await bot.send_message(
-        #     text=f"<b>На твою бутылочку ответили:</b>\n" f"{msg_text}",
-        #     chat_id=bottle.author,
-        #     reply_markup=inline.watch_answ_bottle(
-        #         bottle.id, answ.id, bottle.author, True
-        #     ),
-        # )
-    else:
-        await bot.send_message(
-            text="<b>Тебе пришел ответ!</b>\n", chat_id=bottle.author
-        )
-        await utils.send_bottle_multitype(bottle, bottle.author, None, "")
-        await utils.send_bottle_multitype(answ, bottle.author, None,"<b>Тебе ответили:</b>\n")
-        # await bot.send_message(
-        #     text=f"<b>Тебе ответили:</b>\n" f"{msg_text}", chat_id=bottle.author
-        # )
+    await utils.send_bottle_multitype(answ, bottle.author, inline.watch_answ_bottle(
+            bottle.id, answ.id, bottle.author, True, True
+        ),
+        "<b>На твое послание ответили:</b>\n"
+    )
 
 
-@router.callback_query(inline.WatchBottle.filter(F.is_answ == False))
+@router.callback_query(inline.WatchBottle.filter(F.action == "bottle"))
 async def watch_bottle(
     call: CallbackQuery, callback_data: inline.WatchBottle, state: FSMContext
 ):
@@ -226,7 +209,7 @@ async def watch_bottle(
             bottle,
             callback_data.tg_id,
             inline.watch_answ_bottle(
-                bottle.id, callback_data.answ_id, callback_data.tg_id, False
+                bottle.id, callback_data.answ_id, callback_data.tg_id, False, callback_data.answ_enabled
             ),
             "",
         )
@@ -234,22 +217,13 @@ async def watch_bottle(
         await call.message.delete()
 
 
-@router.callback_query(inline.WatchBottle.filter(F.is_answ == True))
+@router.callback_query(inline.WatchBottle.filter(F.action == "answ"))
 async def watch_answ(
     call: CallbackQuery, callback_data: inline.WatchBottle, state: FSMContext
 ):
     async with async_session_maker() as session:
         stmt = select(Bottle).where(Bottle.id == callback_data.answ_id)
         answ = (await session.execute(stmt)).first()[0]
-        # await call.message.answer(
-        #     text=f"<b>На твою бутылочку ответили:</b>\n{answ.text}",
-        #     reply_markup=inline.watch_answ_bottle(
-        #         callback_data.bottle_id,
-        #         callback_data.answ_id,
-        #         callback_data.tg_id,
-        #         True,
-        #     ),
-        # )
         await utils.send_bottle_multitype(
                 answ,
                 callback_data.tg_id,
@@ -258,11 +232,30 @@ async def watch_answ(
                     callback_data.answ_id,
                     callback_data.tg_id,
                     True,
+                    callback_data.answ_enabled
                 ),
-        "<b>На твою бутылочку ответили:</b>\n"
+        "<b>На твое послание ответили:</b>\n"
         )
 
         await call.message.delete()
+
+
+@router.callback_query(inline.WatchBottle.filter(F.action == "answ_answ"))
+async def answ_answ(
+    call: CallbackQuery, callback_data: inline.WatchBottle, state: FSMContext
+):
+    await state.set_state(states.SendAnswer.answ)
+    await state.update_data(answ=callback_data.answ_id)
+    await call.message.edit_reply_markup(
+                    reply_markup=inline.watch_answ_bottle(
+                    callback_data.bottle_id,
+                    callback_data.answ_id,
+                    callback_data.tg_id,
+                    callback_data.is_answ,
+                    False),
+    )
+
+    await call.message.answer("Напиши свой ответ:")
 
 
 @router.callback_query(inline.Reaction.filter(F.action == "report"))
