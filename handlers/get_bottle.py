@@ -10,7 +10,7 @@ from keyboards import reply, inline
 from bot import bot
 from other import states
 from other.database import async_session_maker
-from other.models import User, Bottle, Answer, Viewed, Report
+from other.models import User, Bottle, Viewed, Report
 from other import button_text
 from other import settings
 from other import utils
@@ -139,9 +139,16 @@ async def tap_answ(
     await call.message.answer("Напиши свой ответ на послание:", reply_markup=reply.main)
 
 
-@router.message(states.SendAnswer.answ)
+@router.message(states.SendAnswer.answ, F.text | F.photo | F.animation | F.video_note | F.sticker | F.video)
 async def send_answer_success(message: Message, state: FSMContext):
     data = (await state.get_data())["answ"]
+    if message.text:
+        msg_text = message.text
+    elif message.caption:
+        msg_text = message.caption
+    else:
+        msg_text = ""
+
     async with async_session_maker() as session:
         stmt = select(Bottle).where(Bottle.id == data.bottle_id)
         bottle = (await session.execute(stmt)).first()[0]
@@ -151,44 +158,61 @@ async def send_answer_success(message: Message, state: FSMContext):
             .values(rating=Bottle.rating + 30)
         )
         await session.execute(stmt)
-        stmt = insert(Answer).values(
-            text=message.text, author=message.from_user.id, bottle=bottle.id
-        )
-        await session.execute(stmt)
+
+        if message.text:
+            msg_type = "text"
+            msg_file = ""
+        elif message.photo:
+            msg_type = "img"
+            msg_file = message.photo[-1].file_id
+        elif message.animation:
+            msg_type = "anim"
+            msg_file = message.animation.file_id
+        elif message.video_note:
+            msg_type = "note"
+            msg_file = message.video_note.file_id
+        elif message.sticker:
+            msg_type = "sticker"
+            msg_file = message.sticker.file_id
+        elif message.video:
+            msg_type = "video"
+            msg_file = message.video.file_id
+
+
+        stmt = insert(Bottle).values(
+            text=msg_text, author=message.from_user.id, type=msg_type, bad=bottle.bad, is_active=False, related_bottle=bottle.id, file_id=msg_file
+        ).returning(Bottle)
+        answ = (await session.execute(stmt)).first()[0]
         stmt = select(User.p_watch_answ_type).where(User.tg_id == bottle.author)
         watch_type = (await session.execute(stmt)).first()[0]
         await session.commit()
 
-        stmt = (
-            select(Answer.id)
-            .where(Answer.author == message.from_user.id)
-            .where(Answer.bottle == bottle.id)
-        )
-        answ_id = (await session.execute(stmt)).first()[0]
-        await session.commit()
-
-    await utils.increment_user_value(
-        bottle.author, receive_amount=User.receive_amount + 1
-    )
+    await utils.increment_user_value(bottle.author, receive_amount=User.receive_amount + 1)
     await state.clear()
     await message.answer("Ваш ответ был отправлен автору ✅", reply_markup=reply.main)
 
     if watch_type == "new":
-        await bot.send_message(
-            text=f"<b>На твою бутылочку ответили:</b>\n" f"{message.text}",
-            chat_id=bottle.author,
-            reply_markup=inline.watch_answ_bottle(
-                bottle.id, answ_id, bottle.author, True
+        await utils.send_bottle_multitype(answ, bottle.author, inline.watch_answ_bottle(
+                bottle.id, answ.id, bottle.author, True
             ),
+            "<b>На твою бутылочку ответили:</b>\n"
         )
+        # await bot.send_message(
+        #     text=f"<b>На твою бутылочку ответили:</b>\n" f"{msg_text}",
+        #     chat_id=bottle.author,
+        #     reply_markup=inline.watch_answ_bottle(
+        #         bottle.id, answ.id, bottle.author, True
+        #     ),
+        # )
     else:
         await bot.send_message(
             text="<b>Тебе пришел ответ!</b>\n", chat_id=bottle.author
         )
         await utils.send_bottle_multitype(bottle, bottle.author, None, "")
-        await bot.send_message(
-            text=f"<b>Тебе ответили:</b>\n" f"{message.text}", chat_id=bottle.author
-        )
+        await utils.send_bottle_multitype(answ, bottle.author, None,"<b>Тебе ответили:</b>\n")
+        # await bot.send_message(
+        #     text=f"<b>Тебе ответили:</b>\n" f"{msg_text}", chat_id=bottle.author
+        # )
 
 
 @router.callback_query(inline.WatchBottle.filter(F.is_answ == False))
@@ -215,16 +239,27 @@ async def watch_answ(
     call: CallbackQuery, callback_data: inline.WatchBottle, state: FSMContext
 ):
     async with async_session_maker() as session:
-        stmt = select(Answer).where(Answer.id == callback_data.answ_id)
+        stmt = select(Bottle).where(Bottle.id == callback_data.answ_id)
         answ = (await session.execute(stmt)).first()[0]
-        await call.message.answer(
-            text=f"<b>На твою бутылочку ответили:</b>\n{answ.text}",
-            reply_markup=inline.watch_answ_bottle(
-                callback_data.bottle_id,
-                callback_data.answ_id,
+        # await call.message.answer(
+        #     text=f"<b>На твою бутылочку ответили:</b>\n{answ.text}",
+        #     reply_markup=inline.watch_answ_bottle(
+        #         callback_data.bottle_id,
+        #         callback_data.answ_id,
+        #         callback_data.tg_id,
+        #         True,
+        #     ),
+        # )
+        await utils.send_bottle_multitype(
+                answ,
                 callback_data.tg_id,
-                True,
-            ),
+                inline.watch_answ_bottle(
+                    callback_data.bottle_id,
+                    callback_data.answ_id,
+                    callback_data.tg_id,
+                    True,
+                ),
+        "<b>На твою бутылочку ответили:</b>\n"
         )
 
         await call.message.delete()

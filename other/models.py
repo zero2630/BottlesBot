@@ -56,6 +56,7 @@ class Bottle(Base):
     rating: Mapped[int] = mapped_column(default=0)  # рейтинг послания, формируется от лайков, дизлайков, частоты ответов на послание
     is_active: Mapped[bool] = mapped_column(server_default="true")  # активность послания; неактивные послания не показываюстя пользователям
     bad: Mapped[bool] = mapped_column(server_default="false")  # в каком режиме бота находится послание
+    related_bottle: Mapped[int] = mapped_column(ForeignKey("bottle.id", ondelete="CASCADE"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user_relation = relationship("User", back_populates="bottle_relation")
@@ -65,23 +66,23 @@ class Bottle(Base):
     liked_relation = relationship(
         "Liked", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
     )
-    answer_relation = relationship(
-        "Answer", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
-    )
+    # answer_relation = relationship(
+    #     "Answer", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
+    # )
     report_relation = relationship(
         "Report", back_populates="bottle_relation", cascade="all, delete, delete-orphan"
     )
 
 
-class Answer(Base):
-    __tablename__ = "answer"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    text: Mapped[str] = mapped_column(Text)  # текст ответа
-    bottle: Mapped[int] = mapped_column(ForeignKey("bottle.id", ondelete="CASCADE"))  # id послание на которое ответили
-    author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id"))  # telegram id автора ответа
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())  # дата создания
-
-    bottle_relation = relationship("Bottle", back_populates="answer_relation")
+# class Answer(Base):
+#     __tablename__ = "answer"
+#     id: Mapped[int] = mapped_column(primary_key=True)
+#     text: Mapped[str] = mapped_column(Text)  # текст ответа
+#     bottle: Mapped[int] = mapped_column(ForeignKey("bottle.id", ondelete="CASCADE"))  # id послание на которое ответили
+#     author: Mapped[int] = mapped_column(BigInteger, ForeignKey("bot_user.tg_id"))  # telegram id автора ответа
+#     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())  # дата создания
+#
+#     bottle_relation = relationship("Bottle", back_populates="answer_relation")
 
 
 class Report(Base):

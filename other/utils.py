@@ -65,6 +65,15 @@ async def send_bottle_multitype(bottle, tg_id, markup, add_text):
         return await bot.send_video_note(
             chat_id=tg_id, video_note=bottle.file_id, reply_markup=markup
         )
+    elif bottle.type == "sticker":
+        return await bot.send_sticker(
+            chat_id=tg_id, sticker=bottle.file_id, reply_markup=markup
+        )
+    elif bottle.type == "video":
+        return await bot.send_video(
+            chat_id=tg_id, video=bottle.file_id, caption=add_text+bottle.text, reply_markup=markup
+        )
+    return None
 
 
 async def get_rand_bottle(tg_id):

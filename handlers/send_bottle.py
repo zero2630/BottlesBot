@@ -31,14 +31,42 @@ async def send_bottle(message: Message, state: FSMContext):
 
 
 # случай с текстом
-@router.message(states.SendBottle.bottle_text, F.text)
+@router.message(states.SendBottle.bottle_text, F.text | F.photo | F.animation | F.video_note | F.sticker | F.video)
 async def send_bottle_success_text(message: Message, state: FSMContext):
     async with async_session_maker() as session:
         stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
         mode = (await session.execute(stmt)).first()[0]
-        stmt = insert(Bottle).values(
-            text=message.text, author=message.from_user.id, type="text", bad=mode
-        )
+
+        if message.text:
+            msg_text = message.text
+        elif message.caption:
+            msg_text = message.caption
+        else:
+            msg_text = ""
+
+        if message.text:
+            msg_type = "text"
+            msg_file = ""
+        elif message.photo:
+            msg_type = "img"
+            msg_file = message.photo[-1].file_id
+        elif message.animation:
+            msg_type = "anim"
+            msg_file = message.animation.file_id
+        elif message.video_note:
+            msg_type = "note"
+            msg_file = message.video_note.file_id
+        elif message.sticker:
+            msg_type = "sticker"
+            msg_file = message.sticker.file_id
+        elif message.video:
+            msg_type = "video"
+            msg_file = message.video.file_id
+
+        # stmt = insert(Bottle).values(
+        #     text=message.text, author=message.from_user.id, type="text", bad=mode
+        # )
+        stmt = insert(Bottle).values(text=msg_text, author=message.from_user.id, type=msg_type, bad=mode, file_id=msg_file)
         await session.execute(stmt)
         await session.commit()
         await utils.increment_user_value(
@@ -50,80 +78,80 @@ async def send_bottle_success_text(message: Message, state: FSMContext):
     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
     await state.clear()
 
-
-# случай с фото
-@router.message(states.SendBottle.bottle_text, F.photo)
-async def send_bottle_success_photo(message: Message, state: FSMContext):
-    async with async_session_maker() as session:
-        photo_caption = ""
-        if message.caption:
-            photo_caption = message.caption
-        stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
-        mode = (await session.execute(stmt)).first()[0]
-        stmt = insert(Bottle).values(
-            text=photo_caption,
-            author=message.from_user.id,
-            type="img",
-            file_id=message.photo[-1].file_id,
-            bad=mode,
-        )
-        await session.execute(stmt)
-        await session.commit()
-        await utils.increment_user_value(
-            message.from_user.id,
-            send_amount=User.send_amount + 1,
-            send_lim=User.send_lim - 1,
-        )
-
-    await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
-    await state.clear()
-
-
-# случай с gif
-@router.message(states.SendBottle.bottle_text, F.animation)
-async def send_bottle_success_gif(message: Message, state: FSMContext):
-    async with async_session_maker() as session:
-        stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
-        mode = (await session.execute(stmt)).first()[0]
-        stmt = insert(Bottle).values(
-            text="",
-            author=message.from_user.id,
-            type="anim",
-            file_id=message.animation.file_id,
-            bad=mode,
-        )
-        await session.execute(stmt)
-        await session.commit()
-        await utils.increment_user_value(
-            message.from_user.id,
-            send_amount=User.send_amount + 1,
-            send_lim=User.send_lim - 1,
-        )
-
-    await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
-    await state.clear()
-
-
-# случай с кружочком
-@router.message(states.SendBottle.bottle_text, F.video_note)
-async def send_bottle_success_note(message: Message, state: FSMContext):
-    async with async_session_maker() as session:
-        stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
-        mode = (await session.execute(stmt)).first()[0]
-        stmt = insert(Bottle).values(
-            text="",
-            author=message.from_user.id,
-            type="note",
-            file_id=message.video_note.file_id,
-            bad=mode,
-        )
-        await session.execute(stmt)
-        await session.commit()
-        await utils.increment_user_value(
-            message.from_user.id,
-            send_amount=User.send_amount + 1,
-            send_lim=User.send_lim - 1,
-        )
-
-    await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
-    await state.clear()
+#
+# # случай с фото
+# @router.message(states.SendBottle.bottle_text, F.photo)
+# async def send_bottle_success_photo(message: Message, state: FSMContext):
+#     async with async_session_maker() as session:
+#         photo_caption = ""
+#         if message.caption:
+#             photo_caption = message.caption
+#         stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
+#         mode = (await session.execute(stmt)).first()[0]
+#         stmt = insert(Bottle).values(
+#             text=photo_caption,
+#             author=message.from_user.id,
+#             type="img",
+#             file_id=message.photo[-1].file_id,
+#             bad=mode,
+#         )
+#         await session.execute(stmt)
+#         await session.commit()
+#         await utils.increment_user_value(
+#             message.from_user.id,
+#             send_amount=User.send_amount + 1,
+#             send_lim=User.send_lim - 1,
+#         )
+#
+#     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
+#     await state.clear()
+#
+#
+# # случай с gif
+# @router.message(states.SendBottle.bottle_text, F.animation)
+# async def send_bottle_success_gif(message: Message, state: FSMContext):
+#     async with async_session_maker() as session:
+#         stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
+#         mode = (await session.execute(stmt)).first()[0]
+#         stmt = insert(Bottle).values(
+#             text="",
+#             author=message.from_user.id,
+#             type="anim",
+#             file_id=message.animation.file_id,
+#             bad=mode,
+#         )
+#         await session.execute(stmt)
+#         await session.commit()
+#         await utils.increment_user_value(
+#             message.from_user.id,
+#             send_amount=User.send_amount + 1,
+#             send_lim=User.send_lim - 1,
+#         )
+#
+#     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
+#     await state.clear()
+#
+#
+# # случай с кружочком
+# @router.message(states.SendBottle.bottle_text, F.video_note)
+# async def send_bottle_success_note(message: Message, state: FSMContext):
+#     async with async_session_maker() as session:
+#         stmt = select(User.p_bad_mode).where(User.tg_id == message.from_user.id)
+#         mode = (await session.execute(stmt)).first()[0]
+#         stmt = insert(Bottle).values(
+#             text="",
+#             author=message.from_user.id,
+#             type="note",
+#             file_id=message.video_note.file_id,
+#             bad=mode,
+#         )
+#         await session.execute(stmt)
+#         await session.commit()
+#         await utils.increment_user_value(
+#             message.from_user.id,
+#             send_amount=User.send_amount + 1,
+#             send_lim=User.send_lim - 1,
+#         )
+#
+#     await message.answer("Бутылочка с посланием отправлена ✅", reply_markup=reply.main)
+#     await state.clear()
