@@ -90,11 +90,11 @@ async def main():
     storage = RedisStorage.from_url("redis://localhost:6379/0")
     banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
     dp.include_routers(
+        user_default.router,
         commands_admin.router,
         commands_user.router,
         get_bottle.router,
         send_bottle.router,
-        user_default.router,
     )
     dp.message.middleware.register(SpamMiddleware(storage))
     dp.message.middleware.register(BanMiddleware(banned_storage))
