@@ -86,7 +86,7 @@ async def main():
     loop.create_task(update_lim())
     loop.create_task(update_rating())
     loop.create_task(random_bottle())
-    #loop.create_task(update_online())
+    loop.create_task(update_online())
     storage = RedisStorage.from_url("redis://localhost:6379/0")
     banned_storage = RedisStorage.from_url("redis://localhost:6379/1")
     dp.include_routers(
